@@ -283,3 +283,146 @@ We will:
 4. Credit you in the release notes (unless you prefer otherwise).
 
 This project does not currently run a paid bug bounty.
+
+---
+
+## Production hardening (implementation reference)
+
+This section pins down the **actual** behavior of the in-process
+hardening layer so you don't have to read the source. Configure these
+under `[security]` in `server.toml`. Defaults are conservative.
+
+```toml
+[security]
+trusted_proxies      = ["127.0.0.1/32", "::1/128"]
+login_rate_per_minute = 5
+api_rate_per_minute   = 60
+csrf_enabled          = true
+```
+
+### Trusted proxy IP detection
+
+The middleware in `crates/server/src/middleware/ip.rs` resolves a
+single canonical "real client IP" per request and injects it into
+request extensions as `ClientIp`. All downstream consumers
+(rate-limit key extractor, audit log, `users.last_login_ip`,
+`users.registration_ip`) use that value.
+
+Algorithm:
+
+1. Take the peer address from axum `ConnectInfo`.
+2. If the peer is **not** inside any `trusted_proxies` CIDR, ignore
+   `X-Forwarded-For` entirely and use the peer IP. This is the
+   anti-spoof guard: an attacker on the open internet cannot inject
+   a fake `X-Forwarded-For`.
+3. If the peer **is** trusted, scan `X-Forwarded-For` from right to
+   left and pick the first IP that is *not* in `trusted_proxies`.
+   That IP is the closest non-proxy hop and therefore the real
+   client. If the entire chain is trusted (internal traffic),
+   fall back to the leftmost entry.
+
+Operator examples for `trusted_proxies`:
+
+| Topology                                      | Recommended value                            |
+|-----------------------------------------------|----------------------------------------------|
+| Caddy/nginx on the same host                  | `["127.0.0.1/32", "::1/128"]` (default)      |
+| Caddy in a Docker bridge network              | `["172.16.0.0/12"]`                          |
+| Cloud LB on private network                   | `["10.0.0.0/8"]`                             |
+| Multiple proxies (CDN → LB → app)             | union of all hops, e.g. `["10.0.0.0/8", "172.16.0.0/12"]` |
+
+If a `trusted_proxies` entry fails to parse it is logged via
+`tracing::warn!` and dropped; the process never panics on bad config.
+
+### Rate limiting
+
+Built on `tower_governor` with a custom key extractor that uses
+`ClientIp` from the request extensions (i.e. limits *per real client*,
+not per reverse-proxy address).
+
+| Endpoint group                                  | Limit                          |
+|-------------------------------------------------|--------------------------------|
+| `POST /admin/login` `/api/auth/login` `/api/auth/register` | `login_rate_per_minute` (default 5) |
+| `/api/admin/*` (all admin REST API)             | `api_rate_per_minute` (default 60)  |
+| Other endpoints                                 | not rate-limited in-process; use reverse proxy |
+
+When the limit is exceeded the response is **`429 Too Many
+Requests`**. The window is a token bucket (`60 000 / N` ms refill,
+burst = `N`). Replenishment is in-process memory; restarting the
+service resets all buckets.
+
+The login limiter is layered **outside** CSRF on `/admin/login`, so a
+brute-forcer can't even reach the CSRF check after burning their
+quota.
+
+### CSRF protection
+
+Enabled when `csrf_enabled = true` (default). Applies to **state-
+changing methods on `/admin/*`** (POST, PUT, PATCH, DELETE). It does
+**not** touch `/api/admin/*` because that surface is JSON + bearer JWT
+already.
+
+Mechanism: double-submit cookie.
+
+1. On any GET under `/admin/*`, the middleware ensures a
+   `cmem_admin_csrf` cookie exists. If absent, it generates a fresh
+   32-byte random hex token, sets `Set-Cookie:
+   cmem_admin_csrf=<token>; HttpOnly; Path=/admin; Max-Age=86400;
+   SameSite=Strict`, and injects `CsrfToken` into request extensions
+   so templates can render `<input type="hidden" name="_csrf"
+   value="...">`.
+2. On a state-changing request, the middleware reads the URL-encoded
+   form body, extracts the `_csrf` field, and compares it byte-for-
+   byte against the cookie value.
+3. Mismatch / missing → `403 Forbidden` with a tiny HTML
+   "reload-and-retry" body. A `tracing::warn!` is emitted with
+   method/uri so legitimate clients with stale tabs are visible in
+   logs.
+
+Why this works: a cross-site attacker can't read the cookie value
+(SameSite=Strict + HttpOnly), so they cannot forge a valid `_csrf`
+form field, so the comparison always fails.
+
+If you must turn CSRF off (debugging, scripted admin), set
+`csrf_enabled = false` — the middleware then still keeps the cookie
+fresh but skips validation.
+
+### Verification
+
+Quick smoke check after deploy (replace host as needed):
+
+```bash
+# 6 rapid POST /admin/login from the same IP — sixth must 429.
+for i in $(seq 1 6); do
+  curl -s -o /dev/null -w "%{http_code}\n" \
+       -X POST -d "username=ghost&password=foo" \
+       https://your.host/admin/login
+done
+```
+
+Spoof check (only meaningful if you exposed cmem-server directly to
+the internet — *don't*):
+
+```bash
+# trusted_proxies = ["127.0.0.1/32"], but request comes from internet
+# with a forged header. All six should still hit the same bucket and
+# the sixth must 429.
+for i in $(seq 1 6); do
+  curl -s -o /dev/null -w "%{http_code}\n" \
+       -H "X-Forwarded-For: 8.8.8.$i" \
+       -X POST -d "username=ghost&password=foo" \
+       https://your.host/admin/login
+done
+```
+
+### Known limits
+
+- Rate-limit state is per-process and resets on restart. Adequate at
+  the deployment scale this project targets; for cluster setups push
+  the limit into the reverse proxy or a shared Redis.
+- `audit_log` does not yet persist `ip_address` for the
+  `auth.login`/`auth.register` rows surfaced via the CLI/web UI; the
+  IP is captured into `users.last_login_ip` / `users.registration_ip`
+  but the action-level history shows `-`.
+- CSRF cookie is scoped to `Path=/admin`; the same cookie is therefore
+  not visible to `/api/*`. JSON API clients must use Bearer JWT, which
+  is unaffected.
