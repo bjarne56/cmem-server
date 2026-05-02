@@ -1,0 +1,14 @@
+/target
+/Cargo.lock.bak
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.local
+*.swp
+.DS_Store
+/dev.db*
+/cmem-server.db*
+/server.toml
+/dev-server.toml
+!deploy/config/server.toml.example

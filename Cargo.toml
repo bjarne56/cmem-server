@@ -1,0 +1,58 @@
+[workspace]
+resolver = "2"
+members = ["crates/shared", "crates/server"]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.78"
+license = "MIT"
+repository = "https://github.com/bjarne/cmem-server"
+
+[workspace.dependencies]
+# 异步与 HTTP
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.7" }
+tower = { version = "0.5" }
+tower-http = { version = "0.6", features = ["trace", "cors", "limit"] }
+
+# 数据库
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "sqlite",
+    "uuid",
+    "chrono",
+    "macros",
+    "migrate",
+] }
+
+# 认证 / 加密
+argon2 = "0.5"
+jsonwebtoken = "9"
+sha2 = "0.10"
+hex = "0.4"
+rand = "0.8"
+nanoid = "0.4"
+
+# 序列化与 ID
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+uuid = { version = "1.10", features = ["v7", "v4", "serde"] }
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+
+# 错误处理与日志
+anyhow = "1"
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# 测试
+assert_matches = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
