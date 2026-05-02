@@ -16,6 +16,24 @@ pub struct LoginPage<'a> {
     pub username: &'a str,
 }
 
+/// `/register` 公开注册页 — 给拿到邀请码的新用户用,不在 admin 子树下。
+/// 注册成功后渲染同模板,把 `success=true`,把表单换成成功提示。
+#[derive(Template)]
+#[template(path = "register.html")]
+pub struct RegisterPage<'a> {
+    pub ctx: LangCtx,
+    /// 已本地化的错误消息(直接显示);None = 无错
+    pub error: Option<&'a str>,
+    /// true = 注册成功,模板会切到 success 视图
+    pub success: bool,
+    /// server 是否强制邀请(影响 invite_code 必填 + 顶部提示文案)
+    pub require_invite: bool,
+    /// 表单回显:提交失败时保留输入,避免用户重输
+    pub username: &'a str,
+    pub email: &'a str,
+    pub invite_code: &'a str,
+}
+
 #[derive(Template)]
 #[template(path = "dashboard.html")]
 pub struct DashboardPage<'a> {

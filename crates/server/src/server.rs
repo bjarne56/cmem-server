@@ -157,7 +157,7 @@ pub fn build_router(state: AppState) -> Router {
             get(admin_web::login_page).post(admin_web::do_login),
         )
         .layer(from_fn_with_state(state.clone(), csrf_protect));
-    if let Some(layer) = login_layer {
+    if let Some(layer) = login_layer.clone() {
         admin_login_router = admin_login_router.layer(layer);
     }
 
@@ -169,6 +169,18 @@ pub fn build_router(state: AppState) -> Router {
         .route("/lang/:code", get(admin_web::switch_lang))
         .layer(from_fn_with_state(state.clone(), csrf_protect));
 
+    // /register 公开注册页 — 跟 /admin/login 同等级:CSRF + 严格 login rate limit。
+    // 不挂在 /admin 下,因为这不是 admin 操作而是面向新用户。
+    let mut register_router = Router::new()
+        .route(
+            "/register",
+            get(admin_web::register_page).post(admin_web::do_register),
+        )
+        .layer(from_fn_with_state(state.clone(), csrf_protect));
+    if let Some(layer) = login_layer.clone() {
+        register_router = register_router.layer(layer);
+    }
+
     // 受保护的 admin web 套 CSRF。其余按需拼一起。
     let admin_protected_with_csrf = admin_web_protected
         .layer(from_fn_with_state(state.clone(), csrf_protect));
@@ -179,6 +191,7 @@ pub fn build_router(state: AppState) -> Router {
 
     public
         .merge(protected)
+        .merge(register_router)
         .nest("/api/admin", admin_api_router)
         .nest("/admin", admin_subtree)
         // 全局最外层:把真实 client IP 解析进 extensions,所有下游(限速 /

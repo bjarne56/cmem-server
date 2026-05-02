@@ -135,6 +135,107 @@ pub async fn do_login(
     Ok(resp)
 }
 
+// ---------- /register (公开注册页) ----------
+//
+// 跟 /admin/login 同等位置:公开访问,但套 CSRF + login rate limit。
+// 注册成功 → 渲染同模板的成功视图(让用户看到去 viewer 登录的指引)。
+// 失败 → 回模板 + 错误,表单字段回显避免用户重输。
+
+#[derive(Debug, Deserialize)]
+pub struct RegisterForm {
+    pub username: String,
+    pub password: String,
+    pub password_confirm: String,
+    pub email: Option<String>,
+    pub invite_code: Option<String>,
+}
+
+pub async fn register_page(
+    State(state): State<AppState>,
+    ctx: LangCtx,
+) -> Result<Response, AppError> {
+    render(&t::RegisterPage {
+        ctx,
+        error: None,
+        success: false,
+        require_invite: state.config.auth.require_invite,
+        username: "",
+        email: "",
+        invite_code: "",
+    })
+}
+
+pub async fn do_register(
+    State(state): State<AppState>,
+    client_ip_ext: Option<axum::Extension<crate::middleware::ClientIp>>,
+    connect: Option<axum::extract::ConnectInfo<std::net::SocketAddr>>,
+    ctx: LangCtx,
+    Form(form): Form<RegisterForm>,
+) -> Result<Response, AppError> {
+    let username = form.username.trim().to_string();
+    let email_opt = form.email.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+    let invite_opt = form.invite_code.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+
+    // 表单层校验:password_confirm
+    if form.password != form.password_confirm {
+        return render(&t::RegisterPage {
+            ctx: ctx.clone(),
+            error: Some(&ctx.t("register.error.password_mismatch")),
+            success: false,
+            require_invite: state.config.auth.require_invite,
+            username: &username,
+            email: email_opt.as_deref().unwrap_or(""),
+            invite_code: invite_opt.as_deref().unwrap_or(""),
+        })
+        .map(|r| (StatusCode::BAD_REQUEST, r).into_response());
+    }
+
+    // 复用 JSON API:构造 RegisterRequest 调内部 fn
+    let req = cmem_shared::api::RegisterRequest {
+        username: username.clone(),
+        password: form.password,
+        email: email_opt.clone(),
+        invite_code: invite_opt.clone(),
+    };
+
+    match crate::auth::handlers::register(
+        State(state.clone()),
+        client_ip_ext,
+        connect,
+        axum::Json(req),
+    )
+    .await
+    {
+        Ok(_) => {
+            // 成功 → success view
+            render(&t::RegisterPage {
+                ctx,
+                error: None,
+                success: true,
+                require_invite: state.config.auth.require_invite,
+                username: &username,
+                email: email_opt.as_deref().unwrap_or(""),
+                invite_code: invite_opt.as_deref().unwrap_or(""),
+            })
+        }
+        Err(e) => {
+            // 失败 → 同页面 + 错误。AppError 的 message 已经够直接(英文/中性)。
+            // 表单字段回显,但密码不回显(不通过 form 字段保留密码本来就是对的)
+            let msg = format!("{e}");
+            render(&t::RegisterPage {
+                ctx,
+                error: Some(&msg),
+                success: false,
+                require_invite: state.config.auth.require_invite,
+                username: &username,
+                email: email_opt.as_deref().unwrap_or(""),
+                invite_code: invite_opt.as_deref().unwrap_or(""),
+            })
+            .map(|r| (StatusCode::BAD_REQUEST, r).into_response())
+        }
+    }
+}
+
 pub async fn do_logout() -> Response {
     let cookie =
         format!("{ADMIN_COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict");

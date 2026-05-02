@@ -35,6 +35,10 @@
       </button>
     </form>
 
+    <div class="mt-4 text-center text-xs">
+      <a href="/register" class="text-indigo-600 hover:underline">{{ ctx.t("login.register_link") }}</a>
+    </div>
+
     <div class="mt-6 text-xs text-gray-500">
       <label class="block mb-1">{{ ctx.t("app.language") }}</label>
       <select onchange="if (this.value) { window.location = '/admin/lang/' + this.value + '?next=/admin/login'; }"
