@@ -14,6 +14,10 @@ pub struct AppConfig {
     pub server: ServerConfig,
     pub database: DatabaseConfig,
     pub auth: AuthConfig,
+    /// 反代 / 速率限制 / CSRF 等运行时安全相关配置。
+    /// 旧 `server.toml` 不写 `[security]` 时使用默认值。
+    #[serde(default)]
+    pub security: SecurityConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +46,51 @@ pub struct AuthConfig {
     pub require_invite: bool,
 }
 
+/// 反代 / 速率限制 / CSRF 等安全加固配置。
+///
+/// 字段都给了合理默认,且 `Deserialize` 用 `#[serde(default)]`,
+/// 旧配置文件 / 缺字段 都能正常加载。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityConfig {
+    /// 信任的反代 CIDR 列表。请求来自这些 CIDR 时,才解析 `X-Forwarded-For`。
+    /// 默认只信本机回环。生产部署一定要改成内网 / 反代实际地址。
+    #[serde(default = "default_trusted_proxies")]
+    pub trusted_proxies: Vec<String>,
+    /// `/admin/login` 等登录端点每个 client IP 每分钟最多次数。
+    #[serde(default = "default_login_rate_per_minute")]
+    pub login_rate_per_minute: u32,
+    /// 其它 admin / API 端点每个 client IP 每分钟最多次数。
+    #[serde(default = "default_api_rate_per_minute")]
+    pub api_rate_per_minute: u32,
+    /// 是否对 admin web POST 表单启用 CSRF 校验。默认开,关闭时仅作日志告警用途。
+    #[serde(default = "default_true")]
+    pub csrf_enabled: bool,
+}
+
+fn default_trusted_proxies() -> Vec<String> {
+    vec!["127.0.0.1/32".to_string(), "::1/128".to_string()]
+}
+fn default_login_rate_per_minute() -> u32 {
+    5
+}
+fn default_api_rate_per_minute() -> u32 {
+    60
+}
+fn default_true() -> bool {
+    true
+}
+
+impl Default for SecurityConfig {
+    fn default() -> Self {
+        Self {
+            trusted_proxies: default_trusted_proxies(),
+            login_rate_per_minute: default_login_rate_per_minute(),
+            api_rate_per_minute: default_api_rate_per_minute(),
+            csrf_enabled: true,
+        }
+    }
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -61,6 +110,7 @@ impl Default for AppConfig {
                 argon2_parallelism: 1,
                 require_invite: false,
             },
+            security: SecurityConfig::default(),
         }
     }
 }

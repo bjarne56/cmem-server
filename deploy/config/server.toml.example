@@ -13,3 +13,25 @@ machine_token_ttl_secs = 15552000
 argon2_memory_kib = 19456
 argon2_iterations = 2
 argon2_parallelism = 1
+
+[security]
+# 信任的反代 IP 范围(CIDR)。请求来自这些 CIDR 时,服务才会读
+# X-Forwarded-For 把第一跳之前的 IP 当作真实 client IP。
+# 缺省只信本机回环。生产部署务必改成反代所在的实际地址。
+#
+# 示例:
+#   单台同机 Caddy/nginx:        ["127.0.0.1/32", "::1/128"]
+#   Caddy 在 Docker 内部网:       ["172.16.0.0/12"]
+#   云负载均衡(私网 10.0.0.0/8): ["10.0.0.0/8"]
+trusted_proxies = ["127.0.0.1/32", "::1/128"]
+
+# /admin/login、/api/auth/login、/api/auth/register 每个 client IP 每分钟上限。
+# 实际响应 429 Too Many Requests。
+login_rate_per_minute = 5
+
+# 其它 /api/admin/* 与 /api/* 端点的每个 client IP 每分钟上限。
+api_rate_per_minute = 60
+
+# 是否对 /admin/* POST 表单启用 CSRF 校验(双重 cookie + 隐藏字段)。
+# 关闭仅在调试时使用。
+csrf_enabled = true
