@@ -1,0 +1,8 @@
+# 让 sqlx query!() 宏编译时能验证 SQL —— 自动从此 dev db 拿 schema
+# 用户 / CI / subagent build 都会用这一行,无需手动 export DATABASE_URL
+# 真实 server 运行时由 server.toml 的 [database] path 控制,跟这个无关
+[env]
+DATABASE_URL = { value = "sqlite:./cmem-server.db", relative = true }
+
+# CI 离线 build:cargo sqlx prepare 生成 .sqlx/ 缓存,然后 SQLX_OFFLINE=true cargo build
+# (本地 dev 不需要,有 dev db 就 work)
