@@ -1,30 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Export · cmem-server{% endblock %}
+{% block title %}{{ ctx.t("export.title") }} {{ ctx.t("app.title") }}{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-6">Export</h1>
+<h1 class="text-2xl font-semibold mb-6">{{ ctx.t("export.title") }}</h1>
 
 <div class="grid md:grid-cols-2 gap-4">
   <a href="/api/admin/export/users.csv" class="block bg-white rounded shadow p-4 hover:shadow-md transition">
-    <div class="text-sm font-semibold">users.csv</div>
-    <div class="text-xs text-gray-500 mt-1">All users with metadata + IPs.</div>
+    <div class="text-sm font-semibold">{{ ctx.t("export.users.title") }}</div>
+    <div class="text-xs text-gray-500 mt-1">{{ ctx.t("export.users.desc") }}</div>
   </a>
   <a href="/api/admin/export/audit.csv" class="block bg-white rounded shadow p-4 hover:shadow-md transition">
-    <div class="text-sm font-semibold">audit.csv</div>
-    <div class="text-xs text-gray-500 mt-1">Full audit log; supports ?from=&to=.</div>
+    <div class="text-sm font-semibold">{{ ctx.t("export.audit.title") }}</div>
+    <div class="text-xs text-gray-500 mt-1">{{ ctx.t("export.audit.desc") }}</div>
   </a>
   <a href="/api/admin/export/observations.csv" class="block bg-white rounded shadow p-4 hover:shadow-md transition">
-    <div class="text-sm font-semibold">observations.csv</div>
-    <div class="text-xs text-gray-500 mt-1">All observations (incl. deleted); supports ?user=&project=.</div>
+    <div class="text-sm font-semibold">{{ ctx.t("export.observations.title") }}</div>
+    <div class="text-xs text-gray-500 mt-1">{{ ctx.t("export.observations.desc") }}</div>
   </a>
   <a href="/api/admin/export/full.db.gz" class="block bg-white rounded shadow p-4 hover:shadow-md transition">
-    <div class="text-sm font-semibold">full.db.gz</div>
-    <div class="text-xs text-gray-500 mt-1">Whole SQLite database via VACUUM INTO + gzip. Open with <code>sqlite3</code>.</div>
+    <div class="text-sm font-semibold">{{ ctx.t("export.full.title") }}</div>
+    <div class="text-xs text-gray-500 mt-1">{{ ctx.t("export.full.desc") }}</div>
   </a>
 </div>
 
 <div class="mt-8 bg-white rounded shadow p-4 text-sm">
-  <h2 class="font-semibold mb-2">Per-user .zip</h2>
-  <p class="text-gray-500 mb-3">Bundle one user's profile + machines + projects + observations + shares + audit into a single .zip (each as JSON).</p>
-  <p class="text-gray-500">Open the user detail page (<a href="/admin/users" class="text-indigo-600 hover:underline">/admin/users</a> → click a username) and use the <em>download user .zip</em> button.</p>
+  <h2 class="font-semibold mb-2">{{ ctx.t("export.peruser.title") }}</h2>
+  <p class="text-gray-500 mb-3">{{ ctx.t("export.peruser.desc") }}</p>
+  <p class="text-gray-500">{{ ctx.t("export.peruser.hint") }}</p>
 </div>
 {% endblock %}

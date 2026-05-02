@@ -1,38 +1,48 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ ctx.lang }}" dir="{{ ctx.dir }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}cmem-server admin{% endblock %}</title>
+  <title>{% block title %}{{ ctx.t("app.title") }} {{ ctx.t("app.subtitle") }}{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://unpkg.com/htmx-ext-json-enc@2.0.1/json-enc.js"></script>
   {% block head_extra %}{% endblock %}
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+    [dir="rtl"] aside { border-right: none; border-left: 1px solid rgb(31 41 55); }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-900">
   <div class="flex min-h-screen">
     <aside class="w-56 bg-gray-900 text-gray-100 flex flex-col">
       <div class="px-4 py-4 border-b border-gray-800">
-        <div class="text-lg font-semibold">cmem-server</div>
-        <div class="text-xs text-gray-400">admin console</div>
+        <div class="text-lg font-semibold">{{ ctx.t("app.title") }}</div>
+        <div class="text-xs text-gray-400">{{ ctx.t("app.subtitle") }}</div>
       </div>
       <nav class="flex-1 px-2 py-3 space-y-1 text-sm">
-        <a href="/admin"               class="block px-3 py-2 rounded hover:bg-gray-800">Dashboard</a>
-        <a href="/admin/users"         class="block px-3 py-2 rounded hover:bg-gray-800">Users</a>
-        <a href="/admin/invites"       class="block px-3 py-2 rounded hover:bg-gray-800">Invites</a>
-        <a href="/admin/projects"      class="block px-3 py-2 rounded hover:bg-gray-800">Projects</a>
-        <a href="/admin/observations"  class="block px-3 py-2 rounded hover:bg-gray-800">Observations</a>
-        <a href="/admin/shares"        class="block px-3 py-2 rounded hover:bg-gray-800">Shares</a>
-        <a href="/admin/audit"         class="block px-3 py-2 rounded hover:bg-gray-800">Audit Log</a>
-        <a href="/admin/export"        class="block px-3 py-2 rounded hover:bg-gray-800">Export</a>
+        <a href="/admin"               class="block px-3 py-2 rounded hover:bg-gray-800">{{ ctx.t("nav.dashboard") }}</a>
+        <a href="/admin/users"         class="block px-3 py-2 rounded hover:bg-gray-800">{{ ctx.t("nav.users") }}</a>
+        <a href="/admin/invites"       class="block px-3 py-2 rounded hover:bg-gray-800">{{ ctx.t("nav.invites") }}</a>
+        <a href="/admin/projects"      class="block px-3 py-2 rounded hover:bg-gray-800">{{ ctx.t("nav.projects") }}</a>
+        <a href="/admin/observations"  class="block px-3 py-2 rounded hover:bg-gray-800">{{ ctx.t("nav.observations") }}</a>
+        <a href="/admin/shares"        class="block px-3 py-2 rounded hover:bg-gray-800">{{ ctx.t("nav.shares") }}</a>
+        <a href="/admin/audit"         class="block px-3 py-2 rounded hover:bg-gray-800">{{ ctx.t("nav.audit") }}</a>
+        <a href="/admin/export"        class="block px-3 py-2 rounded hover:bg-gray-800">{{ ctx.t("nav.export") }}</a>
       </nav>
+      <div class="px-3 py-3 text-xs text-gray-400 border-t border-gray-800">
+        <label class="block uppercase tracking-wide mb-1">{{ ctx.t("app.language") }}</label>
+        <select onchange="if (this.value) { window.location = '/admin/lang/' + this.value + '?next=' + encodeURIComponent(window.location.pathname + window.location.search); }"
+                class="w-full bg-gray-800 text-gray-100 text-xs rounded border border-gray-700 px-2 py-1.5">
+          {% for opt in ctx.all_langs() %}
+          <option value="{{ opt.0 }}"{% if opt.0 == ctx.lang %} selected{% endif %}>{{ opt.1 }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div class="px-4 py-3 text-xs text-gray-400 border-t border-gray-800">
-        signed in as <span class="text-gray-100">{{ admin_username }}</span>
+        {{ ctx.t("app.signed_in_as") }} <span class="text-gray-100">{{ admin_username }}</span>
         <form method="post" action="/admin/logout" class="mt-2">
-          <button class="text-red-300 hover:text-red-200">logout</button>
+          <button class="text-red-300 hover:text-red-200">{{ ctx.t("app.logout") }}</button>
         </form>
       </div>
     </aside>

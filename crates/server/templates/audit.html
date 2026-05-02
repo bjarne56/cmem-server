@@ -1,23 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Audit log · cmem-server{% endblock %}
+{% block title %}{{ ctx.t("audit.title") }} {{ ctx.t("app.title") }}{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-6">Audit log</h1>
+<h1 class="text-2xl font-semibold mb-6">{{ ctx.t("audit.title") }}</h1>
 
 <form method="get" action="/admin/audit" class="flex gap-2 mb-4 text-sm">
-  <input type="search" name="user" value="{{ user_filter }}" placeholder="username" class="border rounded px-3 py-1.5 w-64" />
-  <input type="search" name="action" value="{{ action_filter }}" placeholder="action prefix (e.g. admin.)" class="border rounded px-3 py-1.5 w-64" />
-  <button class="bg-gray-800 text-white rounded px-3 py-1.5 hover:bg-gray-700">filter</button>
+  <input type="search" name="user" value="{{ user_filter }}" placeholder="{{ ctx.t("audit.placeholder.username") }}" class="border rounded px-3 py-1.5 w-64" />
+  <input type="search" name="action" value="{{ action_filter }}" placeholder="{{ ctx.t("audit.placeholder.action") }}" class="border rounded px-3 py-1.5 w-64" />
+  <button class="bg-gray-800 text-white rounded px-3 py-1.5 hover:bg-gray-700">{{ ctx.t("common.filter") }}</button>
 </form>
 
 <div class="bg-white rounded shadow overflow-hidden">
   <table class="min-w-full text-sm">
     <thead class="bg-gray-100 text-xs uppercase text-gray-600">
       <tr>
-        <th class="text-left px-3 py-2">id</th>
-        <th class="text-left px-3 py-2">when</th>
-        <th class="text-left px-3 py-2">user</th>
-        <th class="text-left px-3 py-2">action</th>
-        <th class="text-left px-3 py-2">target</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("audit.col.id") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("audit.col.when") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("audit.col.user") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("audit.col.action") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("audit.col.target") }}</th>
       </tr>
     </thead>
     <tbody class="divide-y">
@@ -31,7 +31,7 @@
       </tr>
       {% endfor %}
       {% if rows.is_empty() %}
-      <tr><td colspan="5" class="text-center text-gray-400 py-6">no audit events</td></tr>
+      <tr><td colspan="5" class="text-center text-gray-400 py-6">{{ ctx.t("common.empty.audit") }}</td></tr>
       {% endif %}
     </tbody>
   </table>

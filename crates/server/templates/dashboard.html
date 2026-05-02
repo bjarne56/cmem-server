@@ -1,66 +1,66 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · cmem-server{% endblock %}
+{% block title %}{{ ctx.t("dashboard.title") }} {{ ctx.t("app.title") }}{% endblock %}
 {% block head_extra %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-6">Dashboard</h1>
+<h1 class="text-2xl font-semibold mb-6">{{ ctx.t("dashboard.title") }}</h1>
 
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
   <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">Users</div>
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.users") }}</div>
     <div class="text-2xl font-semibold mt-1">{{ users }}</div>
   </div>
   <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">Machines</div>
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.machines") }}</div>
     <div class="text-2xl font-semibold mt-1">{{ machines }}</div>
   </div>
   <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">Projects</div>
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.projects") }}</div>
     <div class="text-2xl font-semibold mt-1">{{ projects }}</div>
   </div>
   <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">Observations</div>
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.observations") }}</div>
     <div class="text-2xl font-semibold mt-1">{{ observations }}</div>
   </div>
   <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">Active shares</div>
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.active_shares") }}</div>
     <div class="text-2xl font-semibold mt-1">{{ active_shares }}</div>
   </div>
   <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">Invites</div>
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.invites") }}</div>
     <div class="text-2xl font-semibold mt-1">{{ invites }}</div>
   </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
   <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">Last 24h: new users</div>
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.recent_users") }}</div>
     <div class="text-3xl font-semibold mt-1 text-indigo-600">{{ recent_users }}</div>
   </div>
   <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">Last 24h: new observations</div>
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.recent_observations") }}</div>
     <div class="text-3xl font-semibold mt-1 text-emerald-600">{{ recent_observations }}</div>
   </div>
   <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">Last 24h: audit events</div>
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.recent_audit") }}</div>
     <div class="text-3xl font-semibold mt-1 text-amber-600">{{ recent_audit }}</div>
   </div>
 </div>
 
 <div class="bg-white rounded shadow p-4">
-  <h2 class="text-sm font-semibold mb-3">Activity (last 24h)</h2>
+  <h2 class="text-sm font-semibold mb-3">{{ ctx.t("dashboard.activity_title") }}</h2>
   <canvas id="trend" height="80"></canvas>
 </div>
 
 <script>
-  const ctx = document.getElementById('trend').getContext('2d');
-  new Chart(ctx, {
+  const ctx2 = document.getElementById('trend').getContext('2d');
+  new Chart(ctx2, {
     type: 'bar',
     data: {
-      labels: ['users', 'observations', 'audit events'],
+      labels: ['{{ ctx.t("dashboard.chart.users") }}', '{{ ctx.t("dashboard.chart.observations") }}', '{{ ctx.t("dashboard.chart.audit") }}'],
       datasets: [{
-        label: 'count',
+        label: '{{ ctx.t("dashboard.chart.count") }}',
         data: [{{ recent_users }}, {{ recent_observations }}, {{ recent_audit }}],
         backgroundColor: ['#6366f1', '#10b981', '#f59e0b'],
       }]

@@ -1,12 +1,17 @@
 //! Askama 模板 struct 定义。
 //!
 //! 编译时 inline 模板,运行时无 IO。模板文件在 `templates/` 目录。
+//! 每个 page 内嵌 [`LangCtx`](super::i18n::LangCtx),模板里通过 `{{ ctx.t("key") }}`
+//! 取本地化字符串、`{{ ctx.lang }}` / `{{ ctx.dir }}` 渲染 `<html lang>` / `<body dir>`。
 
 use askama::Template;
+
+use super::i18n::LangCtx;
 
 #[derive(Template)]
 #[template(path = "login.html")]
 pub struct LoginPage<'a> {
+    pub ctx: LangCtx,
     pub error: Option<&'a str>,
     pub username: &'a str,
 }
@@ -14,6 +19,7 @@ pub struct LoginPage<'a> {
 #[derive(Template)]
 #[template(path = "dashboard.html")]
 pub struct DashboardPage<'a> {
+    pub ctx: LangCtx,
     pub admin_username: &'a str,
     pub users: i64,
     pub machines: i64,
@@ -29,6 +35,7 @@ pub struct DashboardPage<'a> {
 #[derive(Template)]
 #[template(path = "users.html")]
 pub struct UsersPage<'a> {
+    pub ctx: LangCtx,
     pub admin_username: &'a str,
     pub query: &'a str,
     pub rows: Vec<UserRow>,
@@ -56,6 +63,7 @@ pub struct UserRow {
 #[derive(Template)]
 #[template(path = "user_detail.html")]
 pub struct UserDetailPage<'a> {
+    pub ctx: LangCtx,
     pub admin_username: &'a str,
     pub user_id: &'a str,
     pub username: &'a str,
@@ -78,6 +86,7 @@ pub struct LoginHistoryRow {
 #[derive(Template)]
 #[template(path = "invites.html")]
 pub struct InvitesPage<'a> {
+    pub ctx: LangCtx,
     pub admin_username: &'a str,
     pub rows: Vec<InviteRow>,
 }
@@ -86,6 +95,7 @@ pub struct InviteRow {
     pub code: String,
     pub max_uses: i64,
     pub use_count: i64,
+    /// 状态原始码:`active` / `expired` / `exhausted`(供模板查 i18n 标签)。
     pub status: &'static str,
     pub status_class: &'static str,
     pub created: String,
@@ -93,9 +103,22 @@ pub struct InviteRow {
     pub used_by: String,
 }
 
+impl InviteRow {
+    /// 状态对应的 i18n key,模板 `{{ ctx.t(r.status_key()) }}`。
+    pub fn status_key(&self) -> &'static str {
+        match self.status {
+            "active" => "invites.status.active",
+            "expired" => "invites.status.expired",
+            "exhausted" => "invites.status.exhausted",
+            _ => "invites.status.active",
+        }
+    }
+}
+
 #[derive(Template)]
 #[template(path = "projects.html")]
 pub struct ProjectsPage<'a> {
+    pub ctx: LangCtx,
     pub admin_username: &'a str,
     pub query: &'a str,
     pub user_filter: &'a str,
@@ -116,6 +139,7 @@ pub struct ProjectRow {
 #[derive(Template)]
 #[template(path = "observations.html")]
 pub struct ObservationsPage<'a> {
+    pub ctx: LangCtx,
     pub admin_username: &'a str,
     pub query: &'a str,
     pub user_filter: &'a str,
@@ -139,6 +163,7 @@ pub struct ObservationRow {
 #[derive(Template)]
 #[template(path = "shares.html")]
 pub struct SharesPage<'a> {
+    pub ctx: LangCtx,
     pub admin_username: &'a str,
     pub rows: Vec<ShareRow>,
 }
@@ -158,6 +183,7 @@ pub struct ShareRow {
 #[derive(Template)]
 #[template(path = "audit.html")]
 pub struct AuditPage<'a> {
+    pub ctx: LangCtx,
     pub admin_username: &'a str,
     pub user_filter: &'a str,
     pub action_filter: &'a str,
@@ -175,5 +201,6 @@ pub struct AuditRow {
 #[derive(Template)]
 #[template(path = "export.html")]
 pub struct ExportPage<'a> {
+    pub ctx: LangCtx,
     pub admin_username: &'a str,
 }

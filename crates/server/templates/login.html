@@ -1,39 +1,49 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ ctx.lang }}" dir="{{ ctx.dir }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>cmem-server · sign in</title>
+  <title>{{ ctx.t("app.title") }} {{ ctx.t("login.title") }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 min-h-screen flex items-center justify-center">
   <div class="bg-white shadow-md rounded-lg p-8 w-96">
-    <h1 class="text-xl font-semibold mb-1">cmem-server</h1>
-    <p class="text-sm text-gray-500 mb-6">admin console</p>
+    <h1 class="text-xl font-semibold mb-1">{{ ctx.t("app.title") }}</h1>
+    <p class="text-sm text-gray-500 mb-6">{{ ctx.t("app.subtitle") }}</p>
 
     {% match error %}
       {% when Some with (msg) %}
         <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded px-3 py-2 mb-4">
-          {{ msg }}
+          {{ ctx.t(msg) }}
         </div>
       {% when None %}
     {% endmatch %}
 
     <form method="post" action="/admin/login" class="space-y-4">
       <div>
-        <label class="block text-xs uppercase tracking-wide text-gray-600 mb-1">username</label>
+        <label class="block text-xs uppercase tracking-wide text-gray-600 mb-1">{{ ctx.t("login.username") }}</label>
         <input name="username" autofocus value="{{ username }}"
                class="block w-full rounded border-gray-300 shadow-sm px-3 py-2 border focus:ring focus:ring-indigo-200" />
       </div>
       <div>
-        <label class="block text-xs uppercase tracking-wide text-gray-600 mb-1">password</label>
+        <label class="block text-xs uppercase tracking-wide text-gray-600 mb-1">{{ ctx.t("login.password") }}</label>
         <input name="password" type="password"
                class="block w-full rounded border-gray-300 shadow-sm px-3 py-2 border focus:ring focus:ring-indigo-200" />
       </div>
       <button class="w-full bg-indigo-600 text-white rounded py-2 hover:bg-indigo-700 text-sm">
-        sign in
+        {{ ctx.t("login.submit") }}
       </button>
     </form>
+
+    <div class="mt-6 text-xs text-gray-500">
+      <label class="block mb-1">{{ ctx.t("app.language") }}</label>
+      <select onchange="if (this.value) { window.location = '/admin/lang/' + this.value + '?next=/admin/login'; }"
+              class="w-full bg-white text-gray-700 text-xs rounded border border-gray-300 px-2 py-1.5">
+        {% for opt in ctx.all_langs() %}
+        <option value="{{ opt.0 }}"{% if opt.0 == ctx.lang %} selected{% endif %}>{{ opt.1 }}</option>
+        {% endfor %}
+      </select>
+    </div>
   </div>
 </body>
 </html>

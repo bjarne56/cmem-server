@@ -238,7 +238,7 @@ impl LangCtx {
         lookup(self.lang, key)
     }
 
-    /// 简单参数替换:`{name}` 之类。返回 `String`(askama 模板里用 `ctx.tf(...)`)。
+    /// 简单参数替换:`{name}` 之类。返回 `String`(测试 / 复杂场景使用)。
     pub fn tf(&self, key: &str, params: &[(&str, &str)]) -> String {
         let mut s = lookup(self.lang, key).to_string();
         for (k, v) in params {
@@ -248,9 +248,18 @@ impl LangCtx {
         s
     }
 
+    /// 单参数版本(askama 模板友好,不需要 slice 字面量):
+    /// `{{ ctx.t1("users.confirm.delete", "username", r.username.as_str()) }}`
+    pub fn t1(&self, key: &str, name: &str, value: &str) -> String {
+        let mut s = lookup(self.lang, key).to_string();
+        let needle = format!("{{{name}}}");
+        s = s.replace(&needle, value);
+        s
+    }
+
     /// 全部 31 种语言列表(用于 dropdown)。
     pub fn all_langs(&self) -> Vec<(&'static str, &'static str)> {
-        NATIVE_NAMES.iter().copied().collect()
+        NATIVE_NAMES.to_vec()
     }
 }
 
@@ -340,6 +349,24 @@ fn cookie_value<'a>(headers: &'a axum::http::HeaderMap, name: &str) -> Option<&'
         }
     }
     None
+}
+
+// ---------- axum extractor:`LangCtx` ----------
+
+#[axum::async_trait]
+impl<S> axum::extract::FromRequestParts<S> for LangCtx
+where
+    S: Send + Sync,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        let lang = pick_lang(&parts.headers, parts.uri.query());
+        Ok(LangCtx::new(lang))
+    }
 }
 
 #[cfg(test)]

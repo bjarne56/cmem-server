@@ -12,7 +12,10 @@ use serde::Deserialize;
 
 use crate::{
     admin::middleware::{AdminPrincipal, ADMIN_COOKIE_NAME},
-    admin::web::templates as t,
+    admin::web::{
+        i18n::{self, LangCtx, LANG_COOKIE_NAME, SUPPORTED_LANGS},
+        templates as t,
+    },
     auth::password::verify_password,
     db::{audit, invites, observations, projects, shares, stats, users},
     error::AppError,
@@ -41,8 +44,9 @@ fn fmt_opt_ts(ts: Option<i64>) -> String {
 
 // ---------- /admin/login ----------
 
-pub async fn login_page() -> Result<Response, AppError> {
+pub async fn login_page(ctx: LangCtx) -> Result<Response, AppError> {
     render(&t::LoginPage {
+        ctx,
         error: None,
         username: "",
     })
@@ -56,8 +60,13 @@ pub struct LoginForm {
 
 pub async fn do_login(
     State(state): State<AppState>,
+    ctx: LangCtx,
     Form(form): Form<LoginForm>,
 ) -> Result<Response, AppError> {
+    // 表单层校验:用户名不能为空(避免传给 db 一个无效查询)。
+    if form.username.trim().is_empty() {
+        return Err(AppError::Validation("username required".into()));
+    }
     let row = users::find_by_username(&state.pool, &form.username)
         .await
         .map_err(AppError::Internal)?;
@@ -66,14 +75,17 @@ pub async fn do_login(
         Some(_) => {
             // username 存在但不是 admin / 已禁用 — 给同样的"无效凭据"提示,避免泄露 admin 身份信息
             let body = render(&t::LoginPage {
-                error: Some("invalid credentials"),
+                ctx,
+                // login.html 用 ctx.t(msg) 把 key 转成本地化文案
+                error: Some("login.error.invalid"),
                 username: &form.username,
             })?;
             return Ok((StatusCode::UNAUTHORIZED, body).into_response());
         }
         None => {
             let body = render(&t::LoginPage {
-                error: Some("invalid credentials"),
+                ctx,
+                error: Some("login.error.invalid"),
                 username: &form.username,
             })?;
             return Ok((StatusCode::UNAUTHORIZED, body).into_response());
@@ -82,7 +94,8 @@ pub async fn do_login(
     let ok = verify_password(&form.password, &user.password_hash).map_err(AppError::Internal)?;
     if !ok {
         let body = render(&t::LoginPage {
-            error: Some("invalid credentials"),
+            ctx,
+            error: Some("login.error.invalid"),
             username: &form.username,
         })?;
         return Ok((StatusCode::UNAUTHORIZED, body).into_response());
@@ -131,11 +144,45 @@ pub async fn do_logout() -> Response {
     resp
 }
 
+// ---------- /admin/lang/:code ----------
+
+#[derive(Debug, Deserialize)]
+pub struct LangSwitchQuery {
+    /// 切换语言后跳回的目标 URL。必须是同源相对路径,默认 `/admin`。
+    pub next: Option<String>,
+}
+
+/// `GET /admin/lang/:code`:把 cookie `cmem_admin_lang` 设成指定语言,302 跳回 `next`(或 `/admin`)。
+///
+/// - 不在 SUPPORTED_LANGS 里的 code → 302 但不写 cookie(等价于无操作)。
+/// - `next` 必须以 `/` 开头并且不含 `://`(防 open redirect)。
+pub async fn switch_lang(
+    Path(code): Path<String>,
+    Query(q): Query<LangSwitchQuery>,
+) -> Response {
+    let next = q
+        .next
+        .as_deref()
+        .filter(|n| n.starts_with('/') && !n.contains("://"))
+        .unwrap_or("/admin");
+    let mut resp = Redirect::to(next).into_response();
+    if SUPPORTED_LANGS.contains(&code.as_str()) {
+        // 一年期,Path=/,SameSite=Strict;明文存放即可(只是显示偏好)
+        let cookie = format!(
+            "{LANG_COOKIE_NAME}={code}; Path=/; Max-Age=31536000; SameSite=Strict"
+        );
+        resp.headers_mut()
+            .append(header::SET_COOKIE, cookie.parse().expect("cookie value"));
+    }
+    resp
+}
+
 // ---------- /admin (dashboard) ----------
 
 pub async fn dashboard(
     State(state): State<AppState>,
     Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
 ) -> Result<Response, AppError> {
     let g = stats::collect(&state.pool).await.map_err(AppError::Internal)?;
     let now = Utc::now().timestamp();
@@ -150,6 +197,7 @@ pub async fn dashboard(
         .await
         .map_err(AppError::Internal)?;
     render(&t::DashboardPage {
+        ctx,
         admin_username: &admin.username,
         users: g.users,
         machines: g.machines,
@@ -178,6 +226,7 @@ pub struct ListQuery {
 pub async fn users_page(
     State(state): State<AppState>,
     Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
     Query(q): Query<ListQuery>,
 ) -> Result<Response, AppError> {
     let query = q.q.as_deref().unwrap_or("");
@@ -214,6 +263,7 @@ pub async fn users_page(
         })
         .collect();
     render(&t::UsersPage {
+        ctx,
         admin_username: &admin.username,
         query,
         rows: view,
@@ -223,6 +273,7 @@ pub async fn users_page(
 pub async fn user_detail_page(
     State(state): State<AppState>,
     Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
     Path(id): Path<String>,
 ) -> Result<Response, AppError> {
     let user = users::find_by_id(&state.pool, &id)
@@ -250,6 +301,7 @@ pub async fn user_detail_page(
         })
         .collect();
     render(&t::UserDetailPage {
+        ctx,
         admin_username: &admin.username,
         user_id: &user.id,
         username: &user.username,
@@ -269,6 +321,7 @@ pub async fn user_detail_page(
 pub async fn invites_page(
     State(state): State<AppState>,
     Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
 ) -> Result<Response, AppError> {
     let now = Utc::now().timestamp();
     let rows = invites::list_all(&state.pool).await.map_err(AppError::Internal)?;
@@ -298,6 +351,7 @@ pub async fn invites_page(
         })
         .collect();
     render(&t::InvitesPage {
+        ctx,
         admin_username: &admin.username,
         rows: view,
     })
@@ -308,6 +362,7 @@ pub async fn invites_page(
 pub async fn projects_page(
     State(state): State<AppState>,
     Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
     Query(q): Query<ListQuery>,
 ) -> Result<Response, AppError> {
     let query = q.q.as_deref().unwrap_or("");
@@ -343,6 +398,7 @@ pub async fn projects_page(
         })
         .collect();
     render(&t::ProjectsPage {
+        ctx,
         admin_username: &admin.username,
         query,
         user_filter,
@@ -355,6 +411,7 @@ pub async fn projects_page(
 pub async fn observations_page(
     State(state): State<AppState>,
     Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
     Query(q): Query<ListQuery>,
 ) -> Result<Response, AppError> {
     let text_query = q.q.as_deref().unwrap_or("");
@@ -410,6 +467,7 @@ pub async fn observations_page(
         })
         .collect();
     render(&t::ObservationsPage {
+        ctx,
         admin_username: &admin.username,
         query: text_query,
         user_filter,
@@ -433,6 +491,7 @@ fn preview(s: &str, max: usize) -> String {
 pub async fn shares_page(
     State(state): State<AppState>,
     Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
 ) -> Result<Response, AppError> {
     let rows = shares::admin_list(&state.pool, 200, 0)
         .await
@@ -452,6 +511,7 @@ pub async fn shares_page(
         })
         .collect();
     render(&t::SharesPage {
+        ctx,
         admin_username: &admin.username,
         rows: view,
     })
@@ -462,6 +522,7 @@ pub async fn shares_page(
 pub async fn audit_page(
     State(state): State<AppState>,
     Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
     Query(q): Query<ListQuery>,
 ) -> Result<Response, AppError> {
     let user_filter = q.user.as_deref().unwrap_or("");
@@ -512,6 +573,7 @@ pub async fn audit_page(
         });
     }
     render(&t::AuditPage {
+        ctx,
         admin_username: &admin.username,
         user_filter,
         action_filter,
@@ -523,8 +585,10 @@ pub async fn audit_page(
 
 pub async fn export_page(
     Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
 ) -> Result<Response, AppError> {
     render(&t::ExportPage {
+        ctx,
         admin_username: &admin.username,
     })
 }
@@ -532,4 +596,7 @@ pub async fn export_page(
 // ---------- HTMX 辅助:登录形式响应(仅 form,失败重渲染整页) ----------
 
 #[allow(dead_code)]
-pub fn unused_keep_helpers(_h: HeaderMap) {}
+pub fn unused_keep_helpers(_h: HeaderMap) {
+    // 保留 i18n / SUPPORTED_LANGS 引用,避免未使用警告(实际两者都在 switch_lang 用到,不再需要)
+    let _ = i18n::DEFAULT_LANG;
+}

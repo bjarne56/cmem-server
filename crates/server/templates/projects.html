@@ -1,28 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Projects · cmem-server{% endblock %}
+{% block title %}{{ ctx.t("projects.title") }} {{ ctx.t("app.title") }}{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-6">Projects</h1>
+<h1 class="text-2xl font-semibold mb-6">{{ ctx.t("projects.title") }}</h1>
 
 <form method="get" action="/admin/projects" class="flex gap-2 mb-4 text-sm">
-  <input type="search" name="q" value="{{ query }}" placeholder="project name..."
+  <input type="search" name="q" value="{{ query }}" placeholder="{{ ctx.t("projects.placeholder.name") }}"
          class="border rounded px-3 py-1.5 w-64" />
-  <input type="search" name="user" value="{{ user_filter }}" placeholder="username..."
+  <input type="search" name="user" value="{{ user_filter }}" placeholder="{{ ctx.t("projects.placeholder.username") }}"
          class="border rounded px-3 py-1.5 w-64" />
-  <button class="bg-gray-800 text-white rounded px-3 py-1.5 hover:bg-gray-700">filter</button>
+  <button class="bg-gray-800 text-white rounded px-3 py-1.5 hover:bg-gray-700">{{ ctx.t("common.filter") }}</button>
 </form>
 
 <div class="bg-white rounded shadow overflow-hidden">
   <table class="min-w-full text-sm">
     <thead class="bg-gray-100 text-xs uppercase text-gray-600">
       <tr>
-        <th class="text-left px-3 py-2">name</th>
-        <th class="text-left px-3 py-2">display</th>
-        <th class="text-left px-3 py-2">owner</th>
-        <th class="text-right px-3 py-2">obs</th>
-        <th class="text-right px-3 py-2">shares</th>
-        <th class="text-left px-3 py-2">excluded</th>
-        <th class="text-left px-3 py-2">created</th>
-        <th class="text-left px-3 py-2">id</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("projects.col.name") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("projects.col.display") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("projects.col.owner") }}</th>
+        <th class="text-right px-3 py-2">{{ ctx.t("projects.col.obs") }}</th>
+        <th class="text-right px-3 py-2">{{ ctx.t("projects.col.shares") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("projects.col.excluded") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("projects.col.created") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("projects.col.id") }}</th>
       </tr>
     </thead>
     <tbody class="divide-y">
@@ -33,13 +33,13 @@
         <td class="px-3 py-2"><a href="/admin/observations?user={{ r.username }}" class="text-indigo-600 hover:underline">{{ r.username }}</a></td>
         <td class="px-3 py-2 text-right">{{ r.observation_count }}</td>
         <td class="px-3 py-2 text-right">{{ r.share_count }}</td>
-        <td class="px-3 py-2">{% if r.is_excluded %}<span class="text-orange-600">yes</span>{% else %}no{% endif %}</td>
+        <td class="px-3 py-2">{% if r.is_excluded %}<span class="text-orange-600">{{ ctx.t("common.yes") }}</span>{% else %}{{ ctx.t("common.no") }}{% endif %}</td>
         <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ r.created }}</td>
         <td class="px-3 py-2 font-mono text-xs text-gray-400">{{ r.id }}</td>
       </tr>
       {% endfor %}
       {% if rows.is_empty() %}
-      <tr><td colspan="8" class="text-center text-gray-400 py-6">no projects</td></tr>
+      <tr><td colspan="8" class="text-center text-gray-400 py-6">{{ ctx.t("common.empty.projects") }}</td></tr>
       {% endif %}
     </tbody>
   </table>

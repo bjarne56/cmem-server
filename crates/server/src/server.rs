@@ -114,7 +114,10 @@ pub fn build_router(state: AppState) -> Router {
             "/login",
             get(admin_web::login_page).post(admin_web::do_login),
         )
-        .route("/logout", post(admin_web::do_logout));
+        .route("/logout", post(admin_web::do_logout))
+        // 切换语言:GET /admin/lang/:code?next=/admin/users → set cookie + 302
+        // 公开路由,因为登录页也需要切换语言
+        .route("/lang/:code", get(admin_web::switch_lang));
 
     public
         .merge(protected)
