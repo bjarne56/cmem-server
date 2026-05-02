@@ -50,6 +50,10 @@ flate2 = { workspace = true }
 cookie = { workspace = true }
 tempfile = { workspace = true }
 
+# 安全加固
+ipnet = { workspace = true }
+tower_governor = { workspace = true }
+
 [dev-dependencies]
 assert_matches = { workspace = true }
 tower = { workspace = true, features = ["util"] }

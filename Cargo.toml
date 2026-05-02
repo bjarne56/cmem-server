@@ -60,6 +60,10 @@ flate2 = "1"
 cookie = { version = "0.18", features = ["percent-encode"] }
 tempfile = "3"
 
+# 安全加固
+ipnet = "2"
+tower_governor = "0.4"
+
 # 测试
 assert_matches = "1"
 
