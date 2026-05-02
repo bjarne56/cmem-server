@@ -48,6 +48,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 # CLI
 clap = { version = "4", features = ["derive"] }
+tabled = "0.16"
+rpassword = "7"
 
 # 测试
 assert_matches = "1"

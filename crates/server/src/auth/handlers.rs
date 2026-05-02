@@ -1,6 +1,12 @@
 //! 认证 HTTP handlers:register / login / refresh / logout / change-password。
 
-use axum::{extract::State, http::StatusCode, Extension, Json};
+use std::net::SocketAddr;
+
+use axum::{
+    extract::{ConnectInfo, State},
+    http::StatusCode,
+    Extension, Json,
+};
 use chrono::{DateTime, TimeZone, Utc};
 use cmem_shared::{
     api::{
@@ -16,7 +22,7 @@ use crate::{
         jwt::{generate_refresh_token, sha256_hex},
         password::{hash_password, verify_password},
     },
-    db::{audit, tokens as token_db, users},
+    db::{audit, invites, tokens as token_db, users},
     error::AppError,
     middleware::Principal,
     state::AppState,
@@ -72,9 +78,16 @@ fn user_view(row: &users::UserRow) -> UserView {
     }
 }
 
+/// 提取客户端 IP。`ConnectInfo` 是可选的:测试用 oneshot 调用时不会注入,
+/// 该情况下视为 None。
+fn client_ip(connect: Option<ConnectInfo<SocketAddr>>) -> Option<String> {
+    connect.map(|ConnectInfo(addr)| addr.ip().to_string())
+}
+
 /// POST /api/auth/register
 pub async fn register(
     State(state): State<AppState>,
+    connect: Option<ConnectInfo<SocketAddr>>,
     Json(req): Json<RegisterRequest>,
 ) -> Result<(StatusCode, Json<RegisterResponse>), AppError> {
     validate_username(&req.username)?;
@@ -94,12 +107,37 @@ pub async fn register(
         return Err(AppError::Conflict("username already taken".into()));
     }
 
-    let id = Uuid::now_v7().to_string();
     let now = Utc::now().timestamp();
+
+    // 邀请码校验:require_invite=true 时强制,有提交则即使非强制也校验。
+    let invite_to_consume = match (state.config.auth.require_invite, req.invite_code.as_deref()) {
+        (true, None) => {
+            return Err(AppError::Validation("invite_code required".into()));
+        }
+        (_, Some(code)) => {
+            let row = invites::find_by_code(&state.pool, code)
+                .await
+                .map_err(AppError::Internal)?
+                .ok_or_else(|| AppError::Validation("invalid invite_code".into()))?;
+            if row.use_count >= row.max_uses {
+                return Err(AppError::Validation("invite_code exhausted".into()));
+            }
+            if let Some(exp) = row.expires_at {
+                if exp <= now {
+                    return Err(AppError::Validation("invite_code expired".into()));
+                }
+            }
+            Some(row.code)
+        }
+        (false, None) => None,
+    };
+
+    let id = Uuid::now_v7().to_string();
     let hash = hash_password(&req.password, &state.config.auth)
         .map_err(AppError::Internal)?;
 
-    users::create_user(
+    let ip = client_ip(connect);
+    users::create_user_with_ip(
         &state.pool,
         &id,
         &req.username,
@@ -107,9 +145,16 @@ pub async fn register(
         req.email.as_deref(),
         false,
         now,
+        ip.as_deref(),
     )
     .await
     .map_err(AppError::Internal)?;
+
+    if let Some(code) = invite_to_consume.as_deref() {
+        invites::consume(&state.pool, code, &id, now)
+            .await
+            .map_err(AppError::Internal)?;
+    }
 
     audit::record(
         &state.pool,
@@ -119,7 +164,7 @@ pub async fn register(
         Some("user"),
         Some(&id),
         None,
-        None,
+        ip.as_deref(),
         None,
         now,
     )
@@ -142,6 +187,7 @@ pub async fn register(
 /// POST /api/auth/login
 pub async fn login(
     State(state): State<AppState>,
+    connect: Option<ConnectInfo<SocketAddr>>,
     Json(req): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, AppError> {
     let row = users::find_by_username(&state.pool, &req.username)
@@ -167,6 +213,7 @@ pub async fn login(
     let (refresh_plain, refresh_hash) = generate_refresh_token();
     let now = Utc::now().timestamp();
     let refresh_exp = now + state.config.auth.refresh_token_ttl_secs;
+    let ip = client_ip(connect);
 
     token_db::insert_refresh(
         &state.pool,
@@ -175,12 +222,12 @@ pub async fn login(
         now,
         refresh_exp,
         None,
-        None,
+        ip.as_deref(),
     )
     .await
     .map_err(AppError::Internal)?;
 
-    users::touch_last_login(&state.pool, &user.id, now)
+    users::touch_last_login_with_ip(&state.pool, &user.id, now, ip.as_deref())
         .await
         .map_err(AppError::Internal)?;
 
@@ -192,7 +239,7 @@ pub async fn login(
         Some("user"),
         Some(&user.id),
         None,
-        None,
+        ip.as_deref(),
         None,
         now,
     )
