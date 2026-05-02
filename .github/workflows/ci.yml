@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  fmt:
+    name: cargo fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: cargo clippy
+    runs-on: ubuntu-latest
+    needs: fmt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Prepare sqlx dev DB
+        run: |
+          touch dev.db
+          cargo install sqlx-cli --no-default-features --features rustls,sqlite
+          DATABASE_URL=sqlite:./dev.db sqlx migrate run --source crates/server/src/db/migrations
+      - name: cargo clippy
+        env:
+          DATABASE_URL: sqlite:./dev.db
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    name: cargo test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Prepare sqlx dev DB
+        run: |
+          touch dev.db
+          cargo install sqlx-cli --no-default-features --features rustls,sqlite
+          DATABASE_URL=sqlite:./dev.db sqlx migrate run --source crates/server/src/db/migrations
+      - name: cargo test
+        env:
+          DATABASE_URL: sqlite:./dev.db
+        run: cargo test --workspace --all-targets
+
+  build-release:
+    name: release build
+    runs-on: ubuntu-latest
+    needs: [clippy, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          touch dev.db
+          cargo install sqlx-cli --no-default-features --features rustls,sqlite
+          DATABASE_URL=sqlite:./dev.db sqlx migrate run --source crates/server/src/db/migrations
+      - name: cargo build --release
+        env:
+          DATABASE_URL: sqlite:./dev.db
+        run: cargo build --release --bin cmem-server
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmem-server-linux-x64
+          path: target/release/cmem-server
+          retention-days: 7
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ludeeus/action-shellcheck@master
+        with:
+          severity: warning
+          scandir: ./scripts
