@@ -37,6 +37,9 @@ pub struct AuthConfig {
     pub argon2_memory_kib: u32,
     pub argon2_iterations: u32,
     pub argon2_parallelism: u32,
+    /// 是否要求注册时必须带有效 invite_code。默认 false 以兼容现有部署。
+    #[serde(default)]
+    pub require_invite: bool,
 }
 
 impl Default for AppConfig {
@@ -56,6 +59,7 @@ impl Default for AppConfig {
                 argon2_memory_kib: 19_456,
                 argon2_iterations: 2,
                 argon2_parallelism: 1,
+                require_invite: false,
             },
         }
     }

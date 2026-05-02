@@ -57,6 +57,7 @@ mod tests {
             argon2_memory_kib: 8,
             argon2_iterations: 1,
             argon2_parallelism: 1,
+            require_invite: false,
         }
     }
 
