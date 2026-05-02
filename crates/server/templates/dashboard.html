@@ -22,46 +22,82 @@
 </div>
 {% endif %}
 
+{# 主统计卡片 — 全部 wrap 成 link 跳到详细页,hover 加阴影提示可点 #}
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-  <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.users") }}</div>
+  <a href="/admin/users" class="block bg-white rounded shadow p-4 hover:shadow-md hover:bg-indigo-50 transition group" title="{{ ctx.t('dashboard.click_to_view') }}">
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.users") }}</div>
+      <span class="text-gray-300 group-hover:text-indigo-500 text-xs">→</span>
+    </div>
     <div class="text-2xl font-semibold mt-1">{{ users }}</div>
-  </div>
-  <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.machines") }}</div>
+  </a>
+
+  <a href="/admin/users" class="block bg-white rounded shadow p-4 hover:shadow-md hover:bg-indigo-50 transition group" title="{{ ctx.t('dashboard.click_to_view') }}">
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.machines") }}</div>
+      <span class="text-gray-300 group-hover:text-indigo-500 text-xs">→</span>
+    </div>
     <div class="text-2xl font-semibold mt-1">{{ machines }}</div>
-  </div>
-  <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.projects") }}</div>
+  </a>
+
+  <a href="/admin/projects" class="block bg-white rounded shadow p-4 hover:shadow-md hover:bg-indigo-50 transition group" title="{{ ctx.t('dashboard.click_to_view') }}">
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.projects") }}</div>
+      <span class="text-gray-300 group-hover:text-indigo-500 text-xs">→</span>
+    </div>
     <div class="text-2xl font-semibold mt-1">{{ projects }}</div>
-  </div>
-  <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.observations") }}</div>
+  </a>
+
+  <a href="/admin/observations" class="block bg-white rounded shadow p-4 hover:shadow-md hover:bg-indigo-50 transition group" title="{{ ctx.t('dashboard.click_to_view') }}">
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.observations") }}</div>
+      <span class="text-gray-300 group-hover:text-indigo-500 text-xs">→</span>
+    </div>
     <div class="text-2xl font-semibold mt-1">{{ observations }}</div>
-  </div>
-  <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.active_shares") }}</div>
+  </a>
+
+  <a href="/admin/shares" class="block bg-white rounded shadow p-4 hover:shadow-md hover:bg-indigo-50 transition group" title="{{ ctx.t('dashboard.click_to_view') }}">
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.active_shares") }}</div>
+      <span class="text-gray-300 group-hover:text-indigo-500 text-xs">→</span>
+    </div>
     <div class="text-2xl font-semibold mt-1">{{ active_shares }}</div>
-  </div>
-  <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.invites") }}</div>
+  </a>
+
+  <a href="/admin/invites" class="block bg-white rounded shadow p-4 hover:shadow-md hover:bg-indigo-50 transition group" title="{{ ctx.t('dashboard.click_to_view') }}">
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.invites") }}</div>
+      <span class="text-gray-300 group-hover:text-indigo-500 text-xs">→</span>
+    </div>
     <div class="text-2xl font-semibold mt-1">{{ invites }}</div>
-  </div>
+  </a>
 </div>
 
+{# 24h 近况 — 同样 link 化 #}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-  <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.recent_users") }}</div>
+  <a href="/admin/users" class="block bg-white rounded shadow p-4 hover:shadow-md hover:bg-indigo-50 transition group" title="{{ ctx.t('dashboard.click_to_view') }}">
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.recent_users") }}</div>
+      <span class="text-gray-300 group-hover:text-indigo-500 text-xs">→</span>
+    </div>
     <div class="text-3xl font-semibold mt-1 text-indigo-600">{{ recent_users }}</div>
-  </div>
-  <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.recent_observations") }}</div>
+  </a>
+
+  <a href="/admin/observations" class="block bg-white rounded shadow p-4 hover:shadow-md hover:bg-emerald-50 transition group" title="{{ ctx.t('dashboard.click_to_view') }}">
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.recent_observations") }}</div>
+      <span class="text-gray-300 group-hover:text-emerald-500 text-xs">→</span>
+    </div>
     <div class="text-3xl font-semibold mt-1 text-emerald-600">{{ recent_observations }}</div>
-  </div>
-  <div class="bg-white rounded shadow p-4">
-    <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.recent_audit") }}</div>
+  </a>
+
+  <a href="/admin/audit" class="block bg-white rounded shadow p-4 hover:shadow-md hover:bg-amber-50 transition group" title="{{ ctx.t('dashboard.click_to_view') }}">
+    <div class="flex items-center justify-between">
+      <div class="text-xs uppercase text-gray-500">{{ ctx.t("dashboard.recent_audit") }}</div>
+      <span class="text-gray-300 group-hover:text-amber-500 text-xs">→</span>
+    </div>
     <div class="text-3xl font-semibold mt-1 text-amber-600">{{ recent_audit }}</div>
-  </div>
+  </a>
 </div>
 
 <div class="bg-white rounded shadow p-4">
