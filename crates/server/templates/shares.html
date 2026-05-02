@@ -1,7 +1,32 @@
 {% extends "base.html" %}
 {% block title %}{{ ctx.t("shares.title") }} {{ ctx.t("app.title") }}{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-6">{{ ctx.t("shares.title") }}</h1>
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold">{{ ctx.t("shares.title") }}</h1>
+  <button onclick="document.getElementById('new-share').classList.toggle('hidden')"
+          class="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700">{{ ctx.t("shares.action.new") }}</button>
+</div>
+
+<div id="new-share" class="hidden bg-white rounded shadow p-4 mb-6">
+  <h2 class="text-sm font-semibold mb-3">{{ ctx.t("shares.create_title") }}</h2>
+  <form method="post" action="/admin/shares" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+    <input name="project_id" required placeholder="{{ ctx.t("shares.placeholder.project_id") }}" class="border rounded px-2 py-1.5 col-span-1 font-mono text-xs" />
+    <input name="target_username" placeholder="{{ ctx.t("shares.placeholder.target_username") }}" class="border rounded px-2 py-1.5 col-span-1" />
+    <select name="target_type" class="border rounded px-2 py-1.5 col-span-1">
+      <option value="user">user</option>
+      <option value="public">public</option>
+      <option value="link">link</option>
+    </select>
+    <select name="share_mode" required class="border rounded px-2 py-1.5 col-span-1">
+      <option value="read-only">read-only</option>
+      <option value="fork-allowed" selected>fork-allowed</option>
+      <option value="auto-copy">auto-copy</option>
+    </select>
+    <input name="expires_days" type="number" min="1" placeholder="{{ ctx.t("shares.placeholder.expires_days") }}" class="border rounded px-2 py-1.5 col-span-1" />
+    <button class="bg-indigo-600 text-white rounded px-3 py-1.5 hover:bg-indigo-700 col-span-1">{{ ctx.t("shares.action.create") }}</button>
+  </form>
+  <p class="text-xs text-gray-500 mt-2">{{ ctx.t("shares.create_hint") }}</p>
+</div>
 
 {% if rows.is_empty() %}
 <div class="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
