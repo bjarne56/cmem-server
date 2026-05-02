@@ -135,6 +135,70 @@ pub async fn do_login(
     Ok(resp)
 }
 
+// ---------- /admin/settings (注册策略 等热配置) ----------
+
+#[derive(Debug, Deserialize)]
+pub struct SettingsForm {
+    /// "open" | "invite_only" | "closed"
+    pub registration_mode: String,
+}
+
+pub async fn settings_page(
+    State(state): State<AppState>,
+    Extension(principal): Extension<AdminPrincipal>,
+    ctx: LangCtx,
+) -> Result<Response, AppError> {
+    let mode = crate::db::settings::get_registration_mode(
+        &state.pool,
+        state.config.auth.require_invite,
+    )
+    .await
+    .map_err(AppError::Internal)?;
+    render(&t::SettingsPage {
+        ctx,
+        admin_username: &principal.username,
+        registration_mode: mode.as_str(),
+        saved: false,
+    })
+}
+
+pub async fn settings_save(
+    State(state): State<AppState>,
+    Extension(principal): Extension<AdminPrincipal>,
+    ctx: LangCtx,
+    Form(form): Form<SettingsForm>,
+) -> Result<Response, AppError> {
+    let new_mode = crate::db::settings::RegistrationMode::from_str(&form.registration_mode)
+        .ok_or_else(|| AppError::Validation("invalid registration_mode".into()))?;
+
+    crate::db::settings::set_registration_mode(&state.pool, new_mode, Some(&principal.user_id))
+        .await
+        .map_err(AppError::Internal)?;
+
+    let now = Utc::now().timestamp();
+    audit::record(
+        &state.pool,
+        Some(&principal.user_id),
+        None,
+        "admin.settings.registration_mode",
+        Some("setting"),
+        Some("registration_mode"),
+        Some(&format!("{{\"value\":\"{}\"}}", new_mode.as_str())),
+        None,
+        None,
+        now,
+    )
+    .await
+    .map_err(AppError::Internal)?;
+
+    render(&t::SettingsPage {
+        ctx,
+        admin_username: &principal.username,
+        registration_mode: new_mode.as_str(),
+        saved: true,
+    })
+}
+
 // ---------- /register (公开注册页) ----------
 //
 // 跟 /admin/login 同等位置:公开访问,但套 CSRF + login rate limit。
@@ -150,15 +214,24 @@ pub struct RegisterForm {
     pub invite_code: Option<String>,
 }
 
+/// 读注册模式 — 简化 fallback 逻辑,失败不抛而是按 open 处理(避免管理 db 出错时 /register 整页 500)
+async fn current_registration_mode(state: &AppState) -> &'static str {
+    crate::db::settings::get_registration_mode(&state.pool, state.config.auth.require_invite)
+        .await
+        .map(|m| m.as_str())
+        .unwrap_or("open")
+}
+
 pub async fn register_page(
     State(state): State<AppState>,
     ctx: LangCtx,
 ) -> Result<Response, AppError> {
+    let mode = current_registration_mode(&state).await;
     render(&t::RegisterPage {
         ctx,
         error: None,
         success: false,
-        require_invite: state.config.auth.require_invite,
+        mode,
         username: "",
         email: "",
         invite_code: "",
@@ -172,6 +245,7 @@ pub async fn do_register(
     ctx: LangCtx,
     Form(form): Form<RegisterForm>,
 ) -> Result<Response, AppError> {
+    let mode = current_registration_mode(&state).await;
     let username = form.username.trim().to_string();
     let email_opt = form.email.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
     let invite_opt = form.invite_code.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
@@ -179,10 +253,10 @@ pub async fn do_register(
     // 表单层校验:password_confirm
     if form.password != form.password_confirm {
         return render(&t::RegisterPage {
-            ctx: ctx.clone(),
-            error: Some(&ctx.t("register.error.password_mismatch")),
+            ctx,
+            error: Some(ctx.t("register.error.password_mismatch")),
             success: false,
-            require_invite: state.config.auth.require_invite,
+            mode,
             username: &username,
             email: email_opt.as_deref().unwrap_or(""),
             invite_code: invite_opt.as_deref().unwrap_or(""),
@@ -190,7 +264,8 @@ pub async fn do_register(
         .map(|r| (StatusCode::BAD_REQUEST, r).into_response());
     }
 
-    // 复用 JSON API:构造 RegisterRequest 调内部 fn
+    // 复用 JSON API:构造 RegisterRequest 调内部 fn(register fn 内部也会再查 mode,
+    // 但这里 fail-fast 一次能省一次 db 写)
     let req = cmem_shared::api::RegisterRequest {
         username: username.clone(),
         password: form.password,
@@ -207,12 +282,13 @@ pub async fn do_register(
     .await
     {
         Ok(_) => {
-            // 成功 → success view
+            // 成功 → success view(re-fetch mode 以反映可能的最新状态)
+            let mode = current_registration_mode(&state).await;
             render(&t::RegisterPage {
                 ctx,
                 error: None,
                 success: true,
-                require_invite: state.config.auth.require_invite,
+                mode,
                 username: &username,
                 email: email_opt.as_deref().unwrap_or(""),
                 invite_code: invite_opt.as_deref().unwrap_or(""),
@@ -226,7 +302,7 @@ pub async fn do_register(
                 ctx,
                 error: Some(&msg),
                 success: false,
-                require_invite: state.config.auth.require_invite,
+                mode,
                 username: &username,
                 email: email_opt.as_deref().unwrap_or(""),
                 invite_code: invite_opt.as_deref().unwrap_or(""),

@@ -123,9 +123,20 @@ pub async fn register(
 
     let now = Utc::now().timestamp();
 
-    // 邀请码校验:require_invite=true 时强制,有提交则即使非强制也校验。
-    let invite_to_consume = match (state.config.auth.require_invite, req.invite_code.as_deref()) {
-        (true, None) => {
+    // 注册策略 — 从 db 读(admin 可热更新),fallback 到 config.toml 的 require_invite
+    let mode = crate::db::settings::get_registration_mode(
+        &state.pool,
+        state.config.auth.require_invite,
+    )
+    .await
+    .map_err(AppError::Internal)?;
+
+    use crate::db::settings::RegistrationMode;
+    let invite_to_consume = match (mode, req.invite_code.as_deref()) {
+        (RegistrationMode::Closed, _) => {
+            return Err(AppError::Validation("registration is closed".into()));
+        }
+        (RegistrationMode::InviteOnly, None) => {
             return Err(AppError::Validation("invite_code required".into()));
         }
         (_, Some(code)) => {
@@ -143,7 +154,7 @@ pub async fn register(
             }
             Some(row.code)
         }
-        (false, None) => None,
+        (RegistrationMode::Open, None) => None,
     };
 
     let id = Uuid::now_v7().to_string();

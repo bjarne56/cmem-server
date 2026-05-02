@@ -17,6 +17,12 @@
       <p class="mt-1 text-xs">{{ ctx.t("register.success.body") }}</p>
       <a href="/admin/login" class="inline-block mt-2 text-indigo-700 hover:underline text-xs">→ /admin/login</a>
     </div>
+    {% else if mode == "closed" %}
+    <div class="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded px-4 py-6 text-center">
+      <div class="text-3xl mb-2">🚫</div>
+      <div class="font-medium">{{ ctx.t("register.closed.title") }}</div>
+      <p class="text-xs text-gray-500 mt-1">{{ ctx.t("register.closed.hint") }}</p>
+    </div>
     {% else %}
 
     {% match error %}
@@ -27,7 +33,7 @@
       {% when None %}
     {% endmatch %}
 
-    {% if require_invite %}
+    {% if mode == "invite_only" %}
     <div class="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded px-3 py-2 mb-4">
       {{ ctx.t("register.invite_required") }}
     </div>
@@ -67,10 +73,10 @@
       </div>
       <div>
         <label class="block text-xs uppercase tracking-wide text-gray-600 mb-1">
-          {{ ctx.t("register.invite_code") }}{% if require_invite %} <span class="text-red-500">*</span>{% endif %}
+          {{ ctx.t("register.invite_code") }}{% if mode == "invite_only" %} <span class="text-red-500">*</span>{% endif %}
         </label>
         <input name="invite_code" value="{{ invite_code }}"
-               {% if require_invite %}required{% endif %}
+               {% if mode == "invite_only" %}required{% endif %}
                class="block w-full rounded border-gray-300 shadow-sm px-3 py-2 border focus:ring focus:ring-indigo-200 font-mono text-sm" />
       </div>
       <button class="w-full bg-indigo-600 text-white rounded py-2 hover:bg-indigo-700 text-sm">

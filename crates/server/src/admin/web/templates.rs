@@ -26,12 +26,25 @@ pub struct RegisterPage<'a> {
     pub error: Option<&'a str>,
     /// true = 注册成功,模板会切到 success 视图
     pub success: bool,
-    /// server 是否强制邀请(影响 invite_code 必填 + 顶部提示文案)
-    pub require_invite: bool,
+    /// 注册策略:"open" / "invite_only" / "closed"。
+    /// closed 时模板不显示表单,显示"注册已关闭"。
+    pub mode: &'static str,
     /// 表单回显:提交失败时保留输入,避免用户重输
     pub username: &'a str,
     pub email: &'a str,
     pub invite_code: &'a str,
+}
+
+/// `/admin/settings` — admin 修改 server-wide 配置(目前只有 registration_mode)。
+#[derive(Template)]
+#[template(path = "settings.html")]
+pub struct SettingsPage<'a> {
+    pub ctx: LangCtx,
+    pub admin_username: &'a str,
+    /// 当前注册模式:"open" / "invite_only" / "closed"
+    pub registration_mode: &'static str,
+    /// 保存成功 flash(true 时模板顶部显示绿色 banner)
+    pub saved: bool,
 }
 
 #[derive(Template)]

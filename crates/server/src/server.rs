@@ -144,6 +144,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/shares", get(admin_web::shares_page).post(admin_web::shares_create_form))
         .route("/audit", get(admin_web::audit_page))
         .route("/export", get(admin_web::export_page))
+        .route("/settings", get(admin_web::settings_page).post(admin_web::settings_save))
         .layer(from_fn_with_state(state.clone(), require_admin));
 
     // /admin/login 单独 sub-router,套两层中间件:

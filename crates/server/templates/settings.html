@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ ctx.t("settings.title") }} {{ ctx.t("app.title") }}{% endblock %}
+{% block content %}
+<div class="max-w-2xl">
+  <h1 class="text-2xl font-semibold mb-6">{{ ctx.t("settings.title") }}</h1>
+
+  {% if saved %}
+  <div class="bg-green-50 border border-green-200 text-green-800 text-sm rounded px-3 py-2 mb-4">
+    ✓ {{ ctx.t("settings.saved") }}
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded shadow p-6 mb-6">
+    <h2 class="text-base font-semibold mb-1">{{ ctx.t("settings.registration.title") }}</h2>
+    <p class="text-xs text-gray-500 mb-4">{{ ctx.t("settings.registration.hint") }}</p>
+
+    <form method="post" action="/admin/settings" class="space-y-3">
+      <label class="flex items-start gap-3 p-3 rounded border cursor-pointer hover:bg-gray-50
+                    {% if registration_mode == "open" %}border-indigo-500 bg-indigo-50{% else %}border-gray-200{% endif %}">
+        <input type="radio" name="registration_mode" value="open" class="mt-1"
+               {% if registration_mode == "open" %}checked{% endif %} />
+        <div>
+          <div class="font-medium text-sm">{{ ctx.t("settings.registration.open") }}</div>
+          <div class="text-xs text-gray-500 mt-0.5">{{ ctx.t("settings.registration.open.hint") }}</div>
+        </div>
+      </label>
+
+      <label class="flex items-start gap-3 p-3 rounded border cursor-pointer hover:bg-gray-50
+                    {% if registration_mode == "invite_only" %}border-indigo-500 bg-indigo-50{% else %}border-gray-200{% endif %}">
+        <input type="radio" name="registration_mode" value="invite_only" class="mt-1"
+               {% if registration_mode == "invite_only" %}checked{% endif %} />
+        <div>
+          <div class="font-medium text-sm">{{ ctx.t("settings.registration.invite_only") }}</div>
+          <div class="text-xs text-gray-500 mt-0.5">{{ ctx.t("settings.registration.invite_only.hint") }}</div>
+        </div>
+      </label>
+
+      <label class="flex items-start gap-3 p-3 rounded border cursor-pointer hover:bg-gray-50
+                    {% if registration_mode == "closed" %}border-indigo-500 bg-indigo-50{% else %}border-gray-200{% endif %}">
+        <input type="radio" name="registration_mode" value="closed" class="mt-1"
+               {% if registration_mode == "closed" %}checked{% endif %} />
+        <div>
+          <div class="font-medium text-sm">{{ ctx.t("settings.registration.closed") }}</div>
+          <div class="text-xs text-gray-500 mt-0.5">{{ ctx.t("settings.registration.closed.hint") }}</div>
+        </div>
+      </label>
+
+      <button class="bg-indigo-600 text-white rounded px-4 py-1.5 hover:bg-indigo-700 text-sm">
+        {{ ctx.t("settings.save") }}
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

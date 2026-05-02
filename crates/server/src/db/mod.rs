@@ -5,6 +5,7 @@ pub mod invites;
 pub mod machines;
 pub mod observations;
 pub mod projects;
+pub mod settings;
 pub mod shares;
 pub mod stats;
 pub mod tokens;
