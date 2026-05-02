@@ -316,6 +316,95 @@ pub async fn user_detail_page(
     })
 }
 
+// ---------- /admin/shares (form POST 创建共享) ----------
+
+#[derive(Debug, Deserialize)]
+pub struct ShareCreateForm {
+    pub project_id: String,
+    pub share_mode: String,
+    /// 'user' / 'public' / 'link'(默认 user)
+    #[serde(default)]
+    pub target_type: String,
+    /// target_type=user 时填
+    #[serde(default)]
+    pub target_username: String,
+    /// 可选过期天数
+    #[serde(default)]
+    pub expires_days: String,
+}
+
+pub async fn shares_create_form(
+    State(state): State<AppState>,
+    Extension(admin): Extension<AdminPrincipal>,
+    Form(form): Form<ShareCreateForm>,
+) -> Result<Redirect, AppError> {
+    let project_id = form.project_id.trim();
+    if project_id.is_empty() {
+        return Err(AppError::Validation("project_id required".into()));
+    }
+    let share_mode = form.share_mode.trim();
+    if !["read-only", "fork-allowed", "auto-copy"].contains(&share_mode) {
+        return Err(AppError::Validation("share_mode must be read-only / fork-allowed / auto-copy".into()));
+    }
+    let target_type = if form.target_type.trim().is_empty() { "user" } else { form.target_type.trim() };
+    if !["user", "public", "link"].contains(&target_type) {
+        return Err(AppError::Validation("target_type must be user / public / link".into()));
+    }
+    let target_user_id: Option<String> = if target_type == "user" {
+        let username = form.target_username.trim();
+        if username.is_empty() {
+            return Err(AppError::Validation("target_username required when target_type=user".into()));
+        }
+        let row = users::find_by_username(&state.pool, username).await.map_err(AppError::Internal)?;
+        match row {
+            Some(u) => Some(u.id),
+            None => return Err(AppError::Validation(format!("user '{}' not found", username))),
+        }
+    } else {
+        None
+    };
+    let expires_at: Option<i64> = form
+        .expires_days
+        .trim()
+        .parse::<i64>()
+        .ok()
+        .filter(|d| *d > 0)
+        .map(|d| Utc::now().timestamp() + d * 86_400);
+    let share_token: Option<String> = if target_type == "link" { Some(nanoid::nanoid!(32)) } else { None };
+
+    let id = uuid::Uuid::now_v7().to_string();
+    let now = Utc::now().timestamp();
+    shares::create(
+        &state.pool,
+        &id,
+        project_id,
+        &admin.user_id,  // sharer_user_id = admin(代理 share,实际 owner 由 project 的 user_id 决定)
+        target_type,
+        target_user_id.as_deref(),
+        share_token.as_deref(),
+        share_mode,
+        expires_at,
+        now,
+    )
+    .await
+    .map_err(AppError::Internal)?;
+    audit::record(
+        &state.pool,
+        Some(&admin.user_id),
+        None,
+        "admin.share_create",
+        Some("share"),
+        Some(&id),
+        Some(&serde_json::json!({"project_id":project_id,"target_type":target_type,"share_mode":share_mode}).to_string()),
+        None,
+        None,
+        now,
+    )
+    .await
+    .map_err(AppError::Internal)?;
+    Ok(Redirect::to("/admin/shares"))
+}
+
 // ---------- /admin/users (form POST 创建用户) ----------
 
 #[derive(Debug, Deserialize)]

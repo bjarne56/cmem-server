@@ -141,7 +141,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/invites", get(admin_web::invites_page).post(admin_web::invites_create_form))
         .route("/projects", get(admin_web::projects_page))
         .route("/observations", get(admin_web::observations_page))
-        .route("/shares", get(admin_web::shares_page))
+        .route("/shares", get(admin_web::shares_page).post(admin_web::shares_create_form))
         .route("/audit", get(admin_web::audit_page))
         .route("/export", get(admin_web::export_page))
         .layer(from_fn_with_state(state.clone(), require_admin));
