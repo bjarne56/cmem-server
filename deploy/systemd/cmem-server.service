@@ -1,0 +1,23 @@
+[Unit]
+Description=cmem-sync server
+After=network.target
+
+[Service]
+Type=simple
+User=cmem
+Group=cmem
+WorkingDirectory=/var/lib/cmem-server
+ExecStart=/usr/local/bin/cmem-server --config /etc/cmem-server/server.toml
+Restart=on-failure
+RestartSec=2
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cmem-server /var/log/cmem-server
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

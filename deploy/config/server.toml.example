@@ -1,0 +1,15 @@
+[server]
+bind = "127.0.0.1:8080"
+
+[database]
+path = "/var/lib/cmem-server/data.db"
+
+[auth]
+# 留空启动时自动生成 256-bit 并写回本文件
+jwt_secret = ""
+access_token_ttl_secs = 900
+refresh_token_ttl_secs = 2592000
+machine_token_ttl_secs = 15552000
+argon2_memory_kib = 19456
+argon2_iterations = 2
+argon2_parallelism = 1
