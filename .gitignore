@@ -1,5 +1,6 @@
 /target
 /Cargo.lock.bak
+/.scratch
 *.db
 *.db-shm
 *.db-wal
@@ -11,4 +12,5 @@
 /cmem-server.db*
 /server.toml
 /dev-server.toml
+/.sloc-guard.toml
 !deploy/config/server.toml.example
