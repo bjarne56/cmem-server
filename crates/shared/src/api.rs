@@ -282,3 +282,31 @@ pub struct SharedProjectEntry {
     pub observation_count: i64,
     pub shared_at: DateTime<Utc>,
 }
+
+// ---------- Fork ----------
+
+/// POST /api/projects/:id/fork 请求体。
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ForkProjectRequest {
+    /// 可选:fork 后的项目名;不填则用 `<source-name>-fork-of-<owner-username>`。
+    pub new_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForkProjectResponse {
+    pub project: ProjectDetail,
+    /// 复制的 observation 数量。
+    pub copied_observations: i64,
+}
+
+/// POST /api/observations/:id/fork 请求体。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForkObservationRequest {
+    /// 必填:fork 后归属的目标项目 id(必须是 forker 自己的项目)。
+    pub to_project_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForkObservationResponse {
+    pub observation: ObservationView,
+}

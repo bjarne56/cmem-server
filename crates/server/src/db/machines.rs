@@ -126,6 +126,34 @@ pub async fn revoke(pool: &SqlitePool, id: &str) -> Result<()> {
     Ok(())
 }
 
+/// 取该用户最新的未撤销机器(用于 server 端 fork 等操作必须填 machine_id 的场景)。
+pub async fn pick_active_machine(
+    pool: &SqlitePool,
+    user_id: &str,
+) -> Result<Option<MachineRow>> {
+    let row = sqlx::query_as!(
+        MachineRow,
+        r#"
+        SELECT
+            id           AS "id!: String",
+            user_id      AS "user_id!: String",
+            name         AS "name!: String",
+            description  AS "description: String",
+            last_seen_at AS "last_seen_at: i64",
+            created_at   AS "created_at!: i64",
+            revoked      AS "revoked!: i64"
+        FROM machines
+        WHERE user_id = ?1 AND revoked = 0
+        ORDER BY COALESCE(last_seen_at, created_at) DESC
+        LIMIT 1
+        "#,
+        user_id,
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row)
+}
+
 /// 触发 last_seen_at 更新(push/pull 都调一次)。
 pub async fn touch_last_seen(pool: &SqlitePool, id: &str, ts: i64) -> Result<()> {
     sqlx::query!(

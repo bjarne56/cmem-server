@@ -460,6 +460,38 @@ pub async fn patch(
     Ok(true)
 }
 
+/// 在事务里创建一个 fork 项目(forked_from_project + forked_at 不为 NULL)。
+#[allow(clippy::too_many_arguments)]
+pub async fn create_fork_in_tx<'c>(
+    tx: &mut Transaction<'c, Sqlite>,
+    id: &str,
+    user_id: &str,
+    name: &str,
+    description: Option<&str>,
+    forked_from_project: &str,
+    forked_at: i64,
+    created_at: i64,
+) -> Result<()> {
+    sqlx::query!(
+        r#"
+        INSERT INTO projects
+            (id, user_id, name, display_name, description, is_excluded,
+             forked_from_project, forked_at, created_at)
+        VALUES (?1, ?2, ?3, NULL, ?4, 0, ?5, ?6, ?7)
+        "#,
+        id,
+        user_id,
+        name,
+        description,
+        forked_from_project,
+        forked_at,
+        created_at,
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
 /// 删除项目:
 /// 1. 先软删该项目下所有未删除的 observation(set deleted_at = now)
 /// 2. 再硬删 project 行(level paths / shares 走 FK CASCADE)
