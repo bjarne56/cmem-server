@@ -19,7 +19,6 @@ use std::net::{IpAddr, SocketAddr};
 
 use axum::{
     extract::{ConnectInfo, Request, State},
-    http::header,
     middleware::Next,
     response::Response,
 };
@@ -113,29 +112,28 @@ pub fn resolve_client_ip(
 }
 
 /// axum 中间件:解析并注入 [`ClientIp`]。
+///
+/// 如果 request extensions 里已经有 [`ClientIp`](由测试预填),保持不动。
+/// 这让单元 / 集成测试能跳过 ConnectInfo 依赖,直接断言"假装来自 IP X 的请求"。
 pub async fn extract_client_ip(
     State(state): State<AppState>,
     connect: Option<ConnectInfo<SocketAddr>>,
     mut req: Request,
     next: Next,
 ) -> Response {
-    let trusted = parse_trusted_cidrs(&state.config.security.trusted_proxies);
-    let peer_ip = connect.map(|ConnectInfo(sa)| sa.ip());
-    let xff = req
-        .headers()
-        .get_all(header::FORWARDED.as_str()) // 占位,真正用的是 X-Forwarded-For,但 header 常量是 HeaderName
-        .iter()
-        .next();
-    // 取 X-Forwarded-For 头(标准命名)
-    let xff_str = req
-        .headers()
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
-
-    let resolved = resolve_client_ip(peer_ip, xff_str.as_deref(), &trusted);
-    let _ = xff; // 抑制未使用的 future use 警告
-    req.extensions_mut().insert(ClientIp(resolved));
+    if req.extensions().get::<ClientIp>().is_none() {
+        let trusted = parse_trusted_cidrs(&state.config.security.trusted_proxies);
+        let peer_ip = connect.map(|ConnectInfo(sa)| sa.ip());
+        // 只解析 X-Forwarded-For(事实标准);不解析 RFC 7239 Forwarded —— 反代默认不发,
+        // 想支持时再加。
+        let xff = req
+            .headers()
+            .get("x-forwarded-for")
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_string);
+        let resolved = resolve_client_ip(peer_ip, xff.as_deref(), &trusted);
+        req.extensions_mut().insert(ClientIp(resolved));
+    }
     next.run(req).await
 }
 
