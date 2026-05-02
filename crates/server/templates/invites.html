@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Invites · cmem-server{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold">Invite codes</h1>
+</div>
+
+<div class="bg-white rounded shadow p-4 mb-6">
+  <h2 class="text-sm font-semibold mb-3">Create invite</h2>
+  <form
+    hx-post="/api/admin/invites"
+    hx-ext="json-enc"
+    hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+    class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm"
+  >
+    <input name="max_uses" type="number" min="1" value="1" class="border rounded px-2 py-1.5" placeholder="max_uses" />
+    <input name="expires_days" type="number" min="1" class="border rounded px-2 py-1.5" placeholder="expires in days (blank = never)" />
+    <button class="bg-indigo-600 text-white rounded px-3 py-1.5 hover:bg-indigo-700">create invite</button>
+  </form>
+</div>
+
+<div class="bg-white rounded shadow overflow-hidden">
+  <table class="min-w-full text-sm">
+    <thead class="bg-gray-100 text-xs uppercase text-gray-600">
+      <tr>
+        <th class="text-left px-3 py-2">code</th>
+        <th class="text-right px-3 py-2">uses / max</th>
+        <th class="text-left px-3 py-2">status</th>
+        <th class="text-left px-3 py-2">created</th>
+        <th class="text-left px-3 py-2">expires</th>
+        <th class="text-left px-3 py-2">used by</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y">
+      {% for r in rows %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-3 py-2 font-mono text-xs break-all">{{ r.code }}</td>
+        <td class="px-3 py-2 text-right">{{ r.use_count }} / {{ r.max_uses }}</td>
+        <td class="px-3 py-2"><span class="text-xs px-2 py-0.5 rounded {{ r.status_class }}">{{ r.status }}</span></td>
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ r.created }}</td>
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ r.expires }}</td>
+        <td class="px-3 py-2 font-mono text-xs">{{ r.used_by }}</td>
+        <td class="px-3 py-2 text-right">
+          <button
+            hx-delete="/api/admin/invites/{{ r.code }}"
+            hx-confirm="Revoke invite {{ r.code }}?"
+            hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+            class="text-red-600 text-xs hover:underline">revoke</button>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if rows.is_empty() %}
+      <tr><td colspan="7" class="text-center text-gray-400 py-6">no invite codes</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

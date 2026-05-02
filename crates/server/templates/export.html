@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Export · cmem-server{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Export</h1>
+
+<div class="grid md:grid-cols-2 gap-4">
+  <a href="/api/admin/export/users.csv" class="block bg-white rounded shadow p-4 hover:shadow-md transition">
+    <div class="text-sm font-semibold">users.csv</div>
+    <div class="text-xs text-gray-500 mt-1">All users with metadata + IPs.</div>
+  </a>
+  <a href="/api/admin/export/audit.csv" class="block bg-white rounded shadow p-4 hover:shadow-md transition">
+    <div class="text-sm font-semibold">audit.csv</div>
+    <div class="text-xs text-gray-500 mt-1">Full audit log; supports ?from=&to=.</div>
+  </a>
+  <a href="/api/admin/export/observations.csv" class="block bg-white rounded shadow p-4 hover:shadow-md transition">
+    <div class="text-sm font-semibold">observations.csv</div>
+    <div class="text-xs text-gray-500 mt-1">All observations (incl. deleted); supports ?user=&project=.</div>
+  </a>
+  <a href="/api/admin/export/full.db.gz" class="block bg-white rounded shadow p-4 hover:shadow-md transition">
+    <div class="text-sm font-semibold">full.db.gz</div>
+    <div class="text-xs text-gray-500 mt-1">Whole SQLite database via VACUUM INTO + gzip. Open with <code>sqlite3</code>.</div>
+  </a>
+</div>
+
+<div class="mt-8 bg-white rounded shadow p-4 text-sm">
+  <h2 class="font-semibold mb-2">Per-user .zip</h2>
+  <p class="text-gray-500 mb-3">Bundle one user's profile + machines + projects + observations + shares + audit into a single .zip (each as JSON).</p>
+  <p class="text-gray-500">Open the user detail page (<a href="/admin/users" class="text-indigo-600 hover:underline">/admin/users</a> → click a username) and use the <em>download user .zip</em> button.</p>
+</div>
+{% endblock %}

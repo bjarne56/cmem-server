@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Users · cmem-server{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold">Users</h1>
+  <button onclick="document.getElementById('new-user').classList.toggle('hidden')"
+          class="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700">+ new user</button>
+</div>
+
+<form method="get" action="/admin/users" class="mb-4">
+  <input type="search" name="q" value="{{ query }}" placeholder="search username / email..."
+         class="border rounded px-3 py-1.5 w-80 text-sm" />
+</form>
+
+<div id="new-user" class="hidden bg-white rounded shadow p-4 mb-6">
+  <h2 class="text-sm font-semibold mb-3">Create user</h2>
+  <form
+    hx-post="/api/admin/users"
+    hx-ext="json-enc"
+    hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+    class="grid grid-cols-1 md:grid-cols-5 gap-3 text-sm"
+  >
+    <input name="username" required placeholder="username" class="border rounded px-2 py-1.5 col-span-1" />
+    <input name="email" type="email" placeholder="email (optional)" class="border rounded px-2 py-1.5 col-span-1" />
+    <input name="password" type="password" required placeholder="password (≥8)" class="border rounded px-2 py-1.5 col-span-1" />
+    <label class="flex items-center gap-1.5">
+      <input type="checkbox" name="is_admin" value="true" /> admin
+    </label>
+    <button class="bg-indigo-600 text-white rounded px-3 py-1.5 hover:bg-indigo-700">create</button>
+  </form>
+  <p class="text-xs text-gray-500 mt-2">hint: requires HTMX json-enc extension; alternatively, POST JSON to /api/admin/users via curl.</p>
+</div>
+
+<div class="bg-white rounded shadow overflow-hidden">
+  <table class="min-w-full text-sm">
+    <thead class="bg-gray-100 text-xs uppercase text-gray-600">
+      <tr>
+        <th class="text-left px-3 py-2">username</th>
+        <th class="text-left px-3 py-2">email</th>
+        <th class="text-left px-3 py-2">admin</th>
+        <th class="text-left px-3 py-2">active</th>
+        <th class="text-right px-3 py-2">machines</th>
+        <th class="text-right px-3 py-2">projects</th>
+        <th class="text-right px-3 py-2">obs</th>
+        <th class="text-left px-3 py-2">created</th>
+        <th class="text-left px-3 py-2">last login</th>
+        <th class="text-left px-3 py-2">last login ip</th>
+        <th class="text-left px-3 py-2">reg ip</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y">
+      {% for r in rows %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-3 py-2"><a href="/admin/users/{{ r.id }}" class="text-indigo-600 hover:underline">{{ r.username }}</a></td>
+        <td class="px-3 py-2 text-gray-600">{{ r.email }}</td>
+        <td class="px-3 py-2"><span class="text-xs px-2 py-0.5 rounded {{ r.admin_class }}">{{ r.admin_label }}</span></td>
+        <td class="px-3 py-2"><span class="text-xs px-2 py-0.5 rounded {{ r.active_class }}">{{ r.active_label }}</span></td>
+        <td class="px-3 py-2 text-right">{{ r.machine_count }}</td>
+        <td class="px-3 py-2 text-right">{{ r.project_count }}</td>
+        <td class="px-3 py-2 text-right">{{ r.observation_count }}</td>
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ r.created_at }}</td>
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ r.last_login_at }}</td>
+        <td class="px-3 py-2 text-gray-600 font-mono text-xs">{{ r.last_login_ip }}</td>
+        <td class="px-3 py-2 text-gray-600 font-mono text-xs">{{ r.registration_ip }}</td>
+        <td class="px-3 py-2 text-right">
+          <button
+            hx-delete="/api/admin/users/{{ r.id }}"
+            hx-confirm="Delete user {{ r.username }} (cascade)?"
+            hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+            class="text-red-600 text-xs hover:underline">delete</button>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if rows.is_empty() %}
+      <tr><td colspan="12" class="text-center text-gray-400 py-6">no users</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

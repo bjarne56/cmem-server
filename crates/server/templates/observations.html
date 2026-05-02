@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Observations · cmem-server{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Observations</h1>
+
+<form method="get" action="/admin/observations" class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4 text-sm">
+  <input type="search" name="q" value="{{ query }}" placeholder="full-text search..." class="border rounded px-3 py-1.5 col-span-2" />
+  <input type="search" name="user" value="{{ user_filter }}" placeholder="username" class="border rounded px-3 py-1.5" />
+  <input type="search" name="project" value="{{ project_filter }}" placeholder="project_id" class="border rounded px-3 py-1.5" />
+  <input type="search" name="type" value="{{ type_filter }}" placeholder="obs_type" class="border rounded px-3 py-1.5" />
+  <button class="bg-gray-800 text-white rounded px-3 py-1.5 hover:bg-gray-700 col-span-1">search</button>
+</form>
+
+<div class="bg-white rounded shadow overflow-hidden">
+  <table class="min-w-full text-sm">
+    <thead class="bg-gray-100 text-xs uppercase text-gray-600">
+      <tr>
+        <th class="text-left px-3 py-2">when</th>
+        <th class="text-left px-3 py-2">user</th>
+        <th class="text-left px-3 py-2">project</th>
+        <th class="text-left px-3 py-2">type</th>
+        <th class="text-left px-3 py-2">content</th>
+        <th class="text-right px-3 py-2">seq</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y">
+      {% for r in rows %}
+      <tr class="hover:bg-gray-50 {% if r.deleted %}opacity-50 line-through{% endif %}">
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ r.timestamp }}</td>
+        <td class="px-3 py-2"><a href="/admin/observations?user={{ r.username }}" class="text-indigo-600 hover:underline">{{ r.username }}</a></td>
+        <td class="px-3 py-2">{{ r.project_name }}<div class="text-xs text-gray-400">{{ r.project_path }}</div></td>
+        <td class="px-3 py-2 text-xs"><span class="bg-gray-100 px-2 py-0.5 rounded">{{ r.obs_type }}</span></td>
+        <td class="px-3 py-2 text-gray-700 max-w-xl">{{ r.content_preview }}</td>
+        <td class="px-3 py-2 text-right text-gray-400 font-mono text-xs">{{ r.server_seq }}</td>
+        <td class="px-3 py-2 text-right">
+          {% if r.deleted == false %}
+          <button
+            hx-delete="/api/admin/observations/{{ r.id }}"
+            hx-confirm="Soft-delete this observation?"
+            hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+            class="text-red-600 text-xs hover:underline">delete</button>
+          {% else %}
+          <span class="text-xs text-gray-400">deleted</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      {% if rows.is_empty() %}
+      <tr><td colspan="7" class="text-center text-gray-400 py-6">no observations</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

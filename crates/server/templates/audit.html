@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Audit log · cmem-server{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Audit log</h1>
+
+<form method="get" action="/admin/audit" class="flex gap-2 mb-4 text-sm">
+  <input type="search" name="user" value="{{ user_filter }}" placeholder="username" class="border rounded px-3 py-1.5 w-64" />
+  <input type="search" name="action" value="{{ action_filter }}" placeholder="action prefix (e.g. admin.)" class="border rounded px-3 py-1.5 w-64" />
+  <button class="bg-gray-800 text-white rounded px-3 py-1.5 hover:bg-gray-700">filter</button>
+</form>
+
+<div class="bg-white rounded shadow overflow-hidden">
+  <table class="min-w-full text-sm">
+    <thead class="bg-gray-100 text-xs uppercase text-gray-600">
+      <tr>
+        <th class="text-left px-3 py-2">id</th>
+        <th class="text-left px-3 py-2">when</th>
+        <th class="text-left px-3 py-2">user</th>
+        <th class="text-left px-3 py-2">action</th>
+        <th class="text-left px-3 py-2">target</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y">
+      {% for r in rows %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-3 py-2 text-gray-400 font-mono text-xs">{{ r.id }}</td>
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ r.when }}</td>
+        <td class="px-3 py-2">{{ r.username }}</td>
+        <td class="px-3 py-2 font-mono text-xs">{{ r.action }}</td>
+        <td class="px-3 py-2 text-gray-600 font-mono text-xs">{{ r.target }}</td>
+      </tr>
+      {% endfor %}
+      {% if rows.is_empty() %}
+      <tr><td colspan="5" class="text-center text-gray-400 py-6">no audit events</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

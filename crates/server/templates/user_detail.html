@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ username }} · cmem-server{% endblock %}
+{% block content %}
+<a href="/admin/users" class="text-sm text-indigo-600">← back to users</a>
+<h1 class="text-2xl font-semibold mt-2 mb-6">{{ username }}</h1>
+
+<div class="grid md:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded shadow p-4 text-sm">
+    <h2 class="text-xs uppercase text-gray-500 mb-2">profile</h2>
+    <dl class="grid grid-cols-2 gap-y-1.5">
+      <dt class="text-gray-500">id</dt>            <dd class="font-mono text-xs">{{ user_id }}</dd>
+      <dt class="text-gray-500">email</dt>         <dd>{{ email }}</dd>
+      <dt class="text-gray-500">admin</dt>         <dd>{% if is_admin %}<span class="text-yellow-700">yes</span>{% else %}no{% endif %}</dd>
+      <dt class="text-gray-500">active</dt>        <dd>{% if is_active %}<span class="text-green-700">yes</span>{% else %}<span class="text-red-700">disabled</span>{% endif %}</dd>
+      <dt class="text-gray-500">created</dt>       <dd>{{ created_at }}</dd>
+      <dt class="text-gray-500">registration ip</dt><dd class="font-mono text-xs">{{ registration_ip }}</dd>
+      <dt class="text-gray-500">last login</dt>    <dd>{{ last_login_at }}</dd>
+      <dt class="text-gray-500">last login ip</dt> <dd class="font-mono text-xs">{{ last_login_ip }}</dd>
+    </dl>
+  </div>
+
+  <div class="bg-white rounded shadow p-4 text-sm">
+    <h2 class="text-xs uppercase text-gray-500 mb-2">actions</h2>
+    <div class="space-y-2">
+      <button
+        hx-post="/api/admin/users/{{ user_id }}/reset-password"
+        hx-confirm="Reset password? old refresh tokens will be revoked."
+        hx-on::after-request="if (event.detail.successful) { alert('new password: ' + JSON.parse(event.detail.xhr.response).new_password); }"
+        class="block w-full text-left bg-amber-100 text-amber-900 rounded px-3 py-2 hover:bg-amber-200">
+        reset password
+      </button>
+      {% if is_admin %}
+      <button
+        hx-patch="/api/admin/users/{{ user_id }}"
+        hx-vals='{"is_admin": false}'
+        hx-ext="json-enc"
+        hx-confirm="Demote {{ username }} from admin?"
+        hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+        class="block w-full text-left bg-gray-100 text-gray-800 rounded px-3 py-2 hover:bg-gray-200">demote</button>
+      {% else %}
+      <button
+        hx-patch="/api/admin/users/{{ user_id }}"
+        hx-vals='{"is_admin": true}'
+        hx-ext="json-enc"
+        hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+        class="block w-full text-left bg-yellow-100 text-yellow-900 rounded px-3 py-2 hover:bg-yellow-200">promote to admin</button>
+      {% endif %}
+      {% if is_active %}
+      <button
+        hx-patch="/api/admin/users/{{ user_id }}"
+        hx-vals='{"is_active": false}'
+        hx-ext="json-enc"
+        hx-confirm="Disable {{ username }}? user cannot login afterwards."
+        hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+        class="block w-full text-left bg-red-50 text-red-700 rounded px-3 py-2 hover:bg-red-100">disable</button>
+      {% else %}
+      <button
+        hx-patch="/api/admin/users/{{ user_id }}"
+        hx-vals='{"is_active": true}'
+        hx-ext="json-enc"
+        hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+        class="block w-full text-left bg-green-50 text-green-700 rounded px-3 py-2 hover:bg-green-100">re-enable</button>
+      {% endif %}
+      <a href="/api/admin/export/user/{{ user_id }}.zip"
+         class="block w-full text-left bg-indigo-50 text-indigo-700 rounded px-3 py-2 hover:bg-indigo-100">
+        download user .zip
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white rounded shadow p-4">
+  <h2 class="text-sm font-semibold mb-3">login history (auth events)</h2>
+  <table class="min-w-full text-sm">
+    <thead class="text-xs uppercase text-gray-500">
+      <tr><th class="text-left py-1">when</th><th class="text-left py-1">action</th><th class="text-left py-1">ip</th></tr>
+    </thead>
+    <tbody class="divide-y">
+      {% for h in login_history %}
+      <tr><td class="py-1.5">{{ h.when }}</td><td class="py-1.5">{{ h.action }}</td><td class="py-1.5 font-mono text-xs">{{ h.ip }}</td></tr>
+      {% endfor %}
+      {% if login_history.is_empty() %}
+      <tr><td colspan="3" class="py-4 text-center text-gray-400">no login events</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

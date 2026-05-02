@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Shares · cmem-server{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Project shares</h1>
+
+<div class="bg-white rounded shadow overflow-hidden">
+  <table class="min-w-full text-sm">
+    <thead class="bg-gray-100 text-xs uppercase text-gray-600">
+      <tr>
+        <th class="text-left px-3 py-2">project</th>
+        <th class="text-left px-3 py-2">sharer</th>
+        <th class="text-left px-3 py-2">target type</th>
+        <th class="text-left px-3 py-2">target user</th>
+        <th class="text-left px-3 py-2">mode</th>
+        <th class="text-left px-3 py-2">created</th>
+        <th class="text-left px-3 py-2">expires</th>
+        <th class="text-left px-3 py-2">status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y">
+      {% for r in rows %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-3 py-2">{{ r.project_name }}</td>
+        <td class="px-3 py-2">{{ r.sharer_username }}</td>
+        <td class="px-3 py-2 text-xs"><span class="bg-gray-100 px-2 py-0.5 rounded">{{ r.target_type }}</span></td>
+        <td class="px-3 py-2">{{ r.target_username }}</td>
+        <td class="px-3 py-2 text-xs"><span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">{{ r.share_mode }}</span></td>
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ r.created }}</td>
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ r.expires }}</td>
+        <td class="px-3 py-2">{% if r.revoked %}<span class="text-xs text-red-700 bg-red-50 px-2 py-0.5 rounded">revoked</span>{% else %}<span class="text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded">active</span>{% endif %}</td>
+        <td class="px-3 py-2 text-right">
+          {% if r.revoked == false %}
+          <button
+            hx-delete="/api/admin/shares/{{ r.id }}"
+            hx-confirm="Force-revoke this share?"
+            hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+            class="text-red-600 text-xs hover:underline">revoke</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      {% if rows.is_empty() %}
+      <tr><td colspan="9" class="text-center text-gray-400 py-6">no shares</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
