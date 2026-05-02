@@ -31,6 +31,15 @@
   <p class="text-xs text-gray-500 mt-2">{{ ctx.t("users.hint.htmx") }}</p>
 </div>
 
+{% if rows.len() <= 1 && query.is_empty() %}
+<div class="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
+  <div class="text-4xl mb-2">👤</div>
+  <h3 class="text-lg font-medium text-gray-800">{{ ctx.t("empty.users.title") }}</h3>
+  <p class="text-gray-500 mt-1 max-w-lg mx-auto">{{ ctx.t("empty.users.hint") }}</p>
+  <a href="/admin/invites" class="mt-4 inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">+ {{ ctx.t("empty.users.cta") }}</a>
+</div>
+{% endif %}
+
 <div class="bg-white rounded shadow overflow-hidden">
   <table class="min-w-full text-sm">
     <thead class="bg-gray-100 text-xs uppercase text-gray-600">
