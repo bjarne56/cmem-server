@@ -136,7 +136,7 @@ pub fn build_router(state: AppState) -> Router {
 
     let admin_web_protected = Router::new()
         .route("/", get(admin_web::dashboard))
-        .route("/users", get(admin_web::users_page))
+        .route("/users", get(admin_web::users_page).post(admin_web::users_create_form))
         .route("/users/:id", get(admin_web::user_detail_page))
         .route("/invites", get(admin_web::invites_page).post(admin_web::invites_create_form))
         .route("/projects", get(admin_web::projects_page))

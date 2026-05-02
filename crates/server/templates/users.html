@@ -15,9 +15,8 @@
 <div id="new-user" class="hidden bg-white rounded shadow p-4 mb-6">
   <h2 class="text-sm font-semibold mb-3">{{ ctx.t("users.create_title") }}</h2>
   <form
-    hx-post="/api/admin/users"
-    hx-ext="json-enc"
-    hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+    method="post"
+    action="/admin/users"
     class="grid grid-cols-1 md:grid-cols-5 gap-3 text-sm"
   >
     <input name="username" required placeholder="{{ ctx.t("users.placeholder.username") }}" class="border rounded px-2 py-1.5 col-span-1" />

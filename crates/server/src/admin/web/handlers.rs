@@ -316,6 +316,65 @@ pub async fn user_detail_page(
     })
 }
 
+// ---------- /admin/users (form POST 创建用户) ----------
+
+#[derive(Debug, Deserialize)]
+pub struct UserCreateForm {
+    pub username: String,
+    #[serde(default)]
+    pub email: String,
+    pub password: String,
+    /// HTML checkbox 不勾时 absent,勾时 value="true"
+    pub is_admin: Option<String>,
+}
+
+pub async fn users_create_form(
+    State(state): State<AppState>,
+    Extension(admin): Extension<AdminPrincipal>,
+    Form(form): Form<UserCreateForm>,
+) -> Result<Redirect, AppError> {
+    use crate::auth::password::hash_password;
+    use uuid::Uuid;
+
+    let username = form.username.trim();
+    if username.is_empty() {
+        return Err(AppError::Validation("username required".into()));
+    }
+    if form.password.chars().count() < 8 {
+        return Err(AppError::Validation("password must be ≥8 chars".into()));
+    }
+    if users::find_by_username(&state.pool, username)
+        .await
+        .map_err(AppError::Internal)?
+        .is_some()
+    {
+        return Err(AppError::Conflict("username already taken".into()));
+    }
+    let id = Uuid::now_v7().to_string();
+    let now = Utc::now().timestamp();
+    let hash = hash_password(&form.password, &state.config.auth).map_err(AppError::Internal)?;
+    let is_admin = matches!(form.is_admin.as_deref(), Some("true") | Some("on") | Some("1"));
+    let email_opt = if form.email.trim().is_empty() { None } else { Some(form.email.trim()) };
+    users::create_user(&state.pool, &id, username, &hash, email_opt, is_admin, now)
+        .await
+        .map_err(AppError::Internal)?;
+    audit::record(
+        &state.pool,
+        Some(&admin.user_id),
+        None,
+        "admin.user_create",
+        Some("user"),
+        Some(&id),
+        Some(&serde_json::json!({ "is_admin": is_admin }).to_string()),
+        None,
+        None,
+        now,
+    )
+    .await
+    .map_err(AppError::Internal)?;
+    Ok(Redirect::to("/admin/users"))
+}
+
 // ---------- /admin/invites ----------
 
 /// POST /admin/invites form-encoded(避免依赖 HTMX json-enc CDN)
