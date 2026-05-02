@@ -63,6 +63,9 @@ tempfile = "3"
 # 安全加固
 ipnet = "2"
 tower_governor = "0.4"
+# tower_governor 0.4 内部用 governor 0.6 但没 re-export,需要直接依赖以拿
+# `governor::middleware::NoOpMiddleware` 类型。
+governor = "0.6"
 
 # 测试
 assert_matches = "1"
