@@ -1,6 +1,10 @@
 //! 数据库连接 + migration runner + 仓储模块。
 
 pub mod audit;
+pub mod machines;
+pub mod observations;
+pub mod projects;
+pub mod shares;
 pub mod tokens;
 pub mod users;
 

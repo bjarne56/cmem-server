@@ -106,6 +106,36 @@ pub async fn touch_last_login(pool: &SqlitePool, id: &str, ts: i64) -> Result<()
     Ok(())
 }
 
+/// 仅返回 (id, username),给 lookup / share 用。
+pub async fn brief_by_id(pool: &SqlitePool, id: &str) -> Result<Option<(String, String)>> {
+    let row = sqlx::query!(
+        r#"SELECT id AS "id!: String", username AS "username!: String" FROM users WHERE id = ?1"#,
+        id,
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| (r.id, r.username)))
+}
+
+/// 仅返回 (id, username),按 username 查找(共享时用)。
+pub async fn brief_by_username(
+    pool: &SqlitePool,
+    username: &str,
+) -> Result<Option<(String, String)>> {
+    let row = sqlx::query!(
+        r#"
+        SELECT id AS "id!: String", username AS "username!: String"
+        FROM users
+        WHERE username = ?1 COLLATE NOCASE
+          AND is_active = 1
+        "#,
+        username,
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| (r.id, r.username)))
+}
+
 /// 修改密码哈希。
 pub async fn update_password_hash(
     pool: &SqlitePool,

@@ -1,0 +1,423 @@
+//! projects + project_paths 表读写。
+
+use anyhow::Result;
+use sqlx::{Sqlite, SqlitePool, Transaction};
+
+#[derive(Debug, Clone)]
+pub struct ProjectRow {
+    pub id: String,
+    pub user_id: String,
+    pub name: String,
+    pub display_name: Option<String>,
+    pub description: Option<String>,
+    pub is_excluded: i64,
+    pub forked_from_project: Option<String>,
+    pub forked_at: Option<i64>,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProjectPathRow {
+    pub project_id: String,
+    pub machine_id: String,
+    pub machine_name: String,
+    pub path: String,
+    pub project_marker_id: Option<String>,
+}
+
+/// 在事务里创建项目。
+pub async fn create_in_tx<'c>(
+    tx: &mut Transaction<'c, Sqlite>,
+    id: &str,
+    user_id: &str,
+    name: &str,
+    description: Option<&str>,
+    created_at: i64,
+) -> Result<()> {
+    sqlx::query!(
+        r#"
+        INSERT INTO projects
+            (id, user_id, name, display_name, description, is_excluded, created_at)
+        VALUES (?1, ?2, ?3, NULL, ?4, 0, ?5)
+        "#,
+        id,
+        user_id,
+        name,
+        description,
+        created_at,
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+/// 池上创建(显式 POST /api/projects 用)。
+pub async fn create(
+    pool: &SqlitePool,
+    id: &str,
+    user_id: &str,
+    name: &str,
+    description: Option<&str>,
+    created_at: i64,
+) -> Result<()> {
+    sqlx::query!(
+        r#"
+        INSERT INTO projects
+            (id, user_id, name, display_name, description, is_excluded, created_at)
+        VALUES (?1, ?2, ?3, NULL, ?4, 0, ?5)
+        "#,
+        id,
+        user_id,
+        name,
+        description,
+        created_at,
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// 在事务里按 (user_id, id) 查找。
+pub async fn find_by_id_in_tx<'c>(
+    tx: &mut Transaction<'c, Sqlite>,
+    user_id: &str,
+    id: &str,
+) -> Result<Option<ProjectRow>> {
+    let row = sqlx::query_as!(
+        ProjectRow,
+        r#"
+        SELECT
+            id                  AS "id!: String",
+            user_id             AS "user_id!: String",
+            name                AS "name!: String",
+            display_name        AS "display_name: String",
+            description         AS "description: String",
+            is_excluded         AS "is_excluded!: i64",
+            forked_from_project AS "forked_from_project: String",
+            forked_at           AS "forked_at: i64",
+            created_at          AS "created_at!: i64"
+        FROM projects
+        WHERE user_id = ?1 AND id = ?2
+        "#,
+        user_id,
+        id,
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    Ok(row)
+}
+
+/// 在事务里按 (user_id, name) 查找(规范化后的 name)。
+pub async fn find_by_name_in_tx<'c>(
+    tx: &mut Transaction<'c, Sqlite>,
+    user_id: &str,
+    name: &str,
+) -> Result<Option<ProjectRow>> {
+    let row = sqlx::query_as!(
+        ProjectRow,
+        r#"
+        SELECT
+            id                  AS "id!: String",
+            user_id             AS "user_id!: String",
+            name                AS "name!: String",
+            display_name        AS "display_name: String",
+            description         AS "description: String",
+            is_excluded         AS "is_excluded!: i64",
+            forked_from_project AS "forked_from_project: String",
+            forked_at           AS "forked_at: i64",
+            created_at          AS "created_at!: i64"
+        FROM projects
+        WHERE user_id = ?1 AND name = ?2
+        "#,
+        user_id,
+        name,
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    Ok(row)
+}
+
+/// 池上按 (user_id, id) 查询。
+pub async fn find_by_id(
+    pool: &SqlitePool,
+    user_id: &str,
+    id: &str,
+) -> Result<Option<ProjectRow>> {
+    let row = sqlx::query_as!(
+        ProjectRow,
+        r#"
+        SELECT
+            id                  AS "id!: String",
+            user_id             AS "user_id!: String",
+            name                AS "name!: String",
+            display_name        AS "display_name: String",
+            description         AS "description: String",
+            is_excluded         AS "is_excluded!: i64",
+            forked_from_project AS "forked_from_project: String",
+            forked_at           AS "forked_at: i64",
+            created_at          AS "created_at!: i64"
+        FROM projects
+        WHERE user_id = ?1 AND id = ?2
+        "#,
+        user_id,
+        id,
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row)
+}
+
+/// 池上按 id 查询(无 user_id 过滤,共享场景查 owner 时使用)。
+pub async fn find_any_by_id(pool: &SqlitePool, id: &str) -> Result<Option<ProjectRow>> {
+    let row = sqlx::query_as!(
+        ProjectRow,
+        r#"
+        SELECT
+            id                  AS "id!: String",
+            user_id             AS "user_id!: String",
+            name                AS "name!: String",
+            display_name        AS "display_name: String",
+            description         AS "description: String",
+            is_excluded         AS "is_excluded!: i64",
+            forked_from_project AS "forked_from_project: String",
+            forked_at           AS "forked_at: i64",
+            created_at          AS "created_at!: i64"
+        FROM projects
+        WHERE id = ?1
+        "#,
+        id,
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row)
+}
+
+/// 池上按 (user_id, name) 查询。
+pub async fn find_by_name(
+    pool: &SqlitePool,
+    user_id: &str,
+    name: &str,
+) -> Result<Option<ProjectRow>> {
+    let row = sqlx::query_as!(
+        ProjectRow,
+        r#"
+        SELECT
+            id                  AS "id!: String",
+            user_id             AS "user_id!: String",
+            name                AS "name!: String",
+            display_name        AS "display_name: String",
+            description         AS "description: String",
+            is_excluded         AS "is_excluded!: i64",
+            forked_from_project AS "forked_from_project: String",
+            forked_at           AS "forked_at: i64",
+            created_at          AS "created_at!: i64"
+        FROM projects
+        WHERE user_id = ?1 AND name = ?2
+        "#,
+        user_id,
+        name,
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row)
+}
+
+/// 列出该用户的所有项目。
+pub async fn list_by_user(pool: &SqlitePool, user_id: &str) -> Result<Vec<ProjectRow>> {
+    let rows = sqlx::query_as!(
+        ProjectRow,
+        r#"
+        SELECT
+            id                  AS "id!: String",
+            user_id             AS "user_id!: String",
+            name                AS "name!: String",
+            display_name        AS "display_name: String",
+            description         AS "description: String",
+            is_excluded         AS "is_excluded!: i64",
+            forked_from_project AS "forked_from_project: String",
+            forked_at           AS "forked_at: i64",
+            created_at          AS "created_at!: i64"
+        FROM projects
+        WHERE user_id = ?1
+        ORDER BY created_at ASC
+        "#,
+        user_id,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
+}
+
+/// 列出某项目所有 path 别名(联机器名)。
+pub async fn list_paths(pool: &SqlitePool, project_id: &str) -> Result<Vec<ProjectPathRow>> {
+    let rows = sqlx::query_as!(
+        ProjectPathRow,
+        r#"
+        SELECT
+            pp.project_id        AS "project_id!: String",
+            pp.machine_id        AS "machine_id!: String",
+            m.name               AS "machine_name!: String",
+            pp.path              AS "path!: String",
+            pp.project_marker_id AS "project_marker_id: String"
+        FROM project_paths pp
+        JOIN machines m ON m.id = pp.machine_id
+        WHERE pp.project_id = ?1
+        ORDER BY pp.created_at ASC
+        "#,
+        project_id,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
+}
+
+/// 在事务里写 path 别名(已存在则忽略)。
+pub async fn record_path_in_tx<'c>(
+    tx: &mut Transaction<'c, Sqlite>,
+    project_id: &str,
+    machine_id: &str,
+    path: &str,
+    project_marker_id: Option<&str>,
+    created_at: i64,
+) -> Result<()> {
+    sqlx::query!(
+        r#"
+        INSERT INTO project_paths
+            (project_id, machine_id, path, project_marker_id, created_at)
+        VALUES (?1, ?2, ?3, ?4, ?5)
+        ON CONFLICT(machine_id, path) DO NOTHING
+        "#,
+        project_id,
+        machine_id,
+        path,
+        project_marker_id,
+        created_at,
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+/// 统计某用户每个项目的 observation 数。返回 HashMap-like Vec。
+pub async fn observation_counts_for_user(
+    pool: &SqlitePool,
+    user_id: &str,
+) -> Result<Vec<(String, i64)>> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT project_id AS "project_id!: String",
+               COUNT(*)   AS "count!: i64"
+        FROM observations
+        WHERE user_id = ?1 AND project_id IS NOT NULL AND deleted_at IS NULL
+        GROUP BY project_id
+        "#,
+        user_id,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.into_iter().map(|r| (r.project_id, r.count)).collect())
+}
+
+/// 单项目 observation 数。
+pub async fn observation_count(pool: &SqlitePool, project_id: &str) -> Result<i64> {
+    let row = sqlx::query!(
+        r#"
+        SELECT COUNT(*) AS "count!: i64"
+        FROM observations
+        WHERE project_id = ?1 AND deleted_at IS NULL
+        "#,
+        project_id,
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(row.count)
+}
+
+/// PATCH 字段(任意子集),返回是否更新成功。
+pub async fn patch(
+    pool: &SqlitePool,
+    user_id: &str,
+    id: &str,
+    name: Option<&str>,
+    display_name: Option<Option<&str>>,
+    description: Option<Option<&str>>,
+    is_excluded: Option<bool>,
+) -> Result<bool> {
+    // 构造原子 update;字段全可选,使用 COALESCE + sentinel 复杂,直接动态拼 4 个独立 query。
+    // 为保持 sqlx 编译时检查,这里走「逐字段 update」策略,所有都在事务里。
+    let mut tx = pool.begin().await?;
+    if let Some(n) = name {
+        sqlx::query!(
+            r#"UPDATE projects SET name = ?3 WHERE user_id = ?1 AND id = ?2"#,
+            user_id,
+            id,
+            n,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+    if let Some(dn) = display_name {
+        sqlx::query!(
+            r#"UPDATE projects SET display_name = ?3 WHERE user_id = ?1 AND id = ?2"#,
+            user_id,
+            id,
+            dn,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+    if let Some(d) = description {
+        sqlx::query!(
+            r#"UPDATE projects SET description = ?3 WHERE user_id = ?1 AND id = ?2"#,
+            user_id,
+            id,
+            d,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+    if let Some(ex) = is_excluded {
+        let flag: i64 = if ex { 1 } else { 0 };
+        sqlx::query!(
+            r#"UPDATE projects SET is_excluded = ?3 WHERE user_id = ?1 AND id = ?2"#,
+            user_id,
+            id,
+            flag,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(true)
+}
+
+/// 删除项目:
+/// 1. 先软删该项目下所有未删除的 observation(set deleted_at = now)
+/// 2. 再硬删 project 行(level paths / shares 走 FK CASCADE)
+///
+/// 软删 observation 的好处:server_seq 仍单调,客户端按 cursor pull 不会拿到“已不存在的项目”。
+pub async fn delete(pool: &SqlitePool, user_id: &str, id: &str, now: i64) -> Result<bool> {
+    let mut tx = pool.begin().await?;
+    sqlx::query!(
+        r#"
+        UPDATE observations
+        SET deleted_at = ?3
+        WHERE project_id = ?1 AND user_id = ?2 AND deleted_at IS NULL
+        "#,
+        id,
+        user_id,
+        now,
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    let res = sqlx::query!(
+        r#"DELETE FROM projects WHERE user_id = ?1 AND id = ?2"#,
+        user_id,
+        id,
+    )
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(res.rows_affected() > 0)
+}
