@@ -41,6 +41,15 @@ clap = { workspace = true }
 tabled = { workspace = true }
 rpassword = { workspace = true }
 
+# admin web 后台
+askama = { workspace = true }
+askama_axum = { workspace = true }
+csv = { workspace = true }
+zip = { workspace = true }
+flate2 = { workspace = true }
+cookie = { workspace = true }
+tempfile = { workspace = true }
+
 [dev-dependencies]
 assert_matches = { workspace = true }
 tower = { workspace = true, features = ["util"] }

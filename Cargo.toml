@@ -51,6 +51,15 @@ clap = { version = "4", features = ["derive"] }
 tabled = "0.16"
 rpassword = "7"
 
+# admin web 后台
+askama = { version = "0.12", default-features = false, features = ["with-axum"] }
+askama_axum = "0.4"
+csv = "1.3"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+flate2 = "1"
+cookie = { version = "0.18", features = ["percent-encode"] }
+tempfile = "3"
+
 # 测试
 assert_matches = "1"
 
