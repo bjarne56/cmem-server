@@ -7,6 +7,7 @@ use axum::{
     http::StatusCode,
     Extension, Json,
 };
+use crate::middleware::ClientIp;
 use chrono::{DateTime, TimeZone, Utc};
 use cmem_shared::{
     api::{
@@ -78,18 +79,31 @@ fn user_view(row: &users::UserRow) -> UserView {
     }
 }
 
-/// 提取客户端 IP。`ConnectInfo` 是可选的:测试用 oneshot 调用时不会注入,
-/// 该情况下视为 None。
-fn client_ip(connect: Option<ConnectInfo<SocketAddr>>) -> Option<String> {
+/// 提取客户端 IP。
+///
+/// 优先级:
+/// 1. [`ClientIp`] extension(由 [`crate::middleware::ip::extract_client_ip`] 注入,
+///    已经做过 X-Forwarded-For + trusted_proxies 校验)。
+/// 2. 退化到原始 [`ConnectInfo`](axum::extract::ConnectInfo)(测试 oneshot
+///    或中间件没接上时使用)。
+fn client_ip(
+    client_ip_ext: Option<&ClientIp>,
+    connect: Option<ConnectInfo<SocketAddr>>,
+) -> Option<String> {
+    if let Some(ip) = client_ip_ext.and_then(|c| c.as_string()) {
+        return Some(ip);
+    }
     connect.map(|ConnectInfo(addr)| addr.ip().to_string())
 }
 
 /// POST /api/auth/register
 pub async fn register(
     State(state): State<AppState>,
+    client_ip_ext: Option<Extension<ClientIp>>,
     connect: Option<ConnectInfo<SocketAddr>>,
     Json(req): Json<RegisterRequest>,
 ) -> Result<(StatusCode, Json<RegisterResponse>), AppError> {
+    let client_ip_ref = client_ip_ext.as_ref().map(|Extension(c)| c);
     validate_username(&req.username)?;
     validate_password(&req.password)?;
 
@@ -136,7 +150,7 @@ pub async fn register(
     let hash = hash_password(&req.password, &state.config.auth)
         .map_err(AppError::Internal)?;
 
-    let ip = client_ip(connect);
+    let ip = client_ip(client_ip_ref, connect);
     users::create_user_with_ip(
         &state.pool,
         &id,
@@ -187,9 +201,11 @@ pub async fn register(
 /// POST /api/auth/login
 pub async fn login(
     State(state): State<AppState>,
+    client_ip_ext: Option<Extension<ClientIp>>,
     connect: Option<ConnectInfo<SocketAddr>>,
     Json(req): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, AppError> {
+    let client_ip_ref = client_ip_ext.as_ref().map(|Extension(c)| c);
     let row = users::find_by_username(&state.pool, &req.username)
         .await
         .map_err(AppError::Internal)?;
@@ -213,7 +229,7 @@ pub async fn login(
     let (refresh_plain, refresh_hash) = generate_refresh_token();
     let now = Utc::now().timestamp();
     let refresh_exp = now + state.config.auth.refresh_token_ttl_secs;
-    let ip = client_ip(connect);
+    let ip = client_ip(client_ip_ref, connect);
 
     token_db::insert_refresh(
         &state.pool,
