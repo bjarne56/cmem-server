@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  cmem-server launchd plist 模板(macOS)
+
+  安装到 /Library/LaunchDaemons/com.cmem.server.plist
+  操作:
+    sudo launchctl bootstrap system /Library/LaunchDaemons/com.cmem.server.plist
+    sudo launchctl bootout    system /Library/LaunchDaemons/com.cmem.server.plist
+    sudo launchctl kickstart -k system/com.cmem.server         # 重启
+    sudo launchctl print       system/com.cmem.server          # 状态
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.cmem.server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/share/cmem-server/cmem-server</string>
+        <string>-c</string>
+        <string>/usr/local/etc/cmem-server.toml</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/usr/local/var/cmem-server</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+    <key>StandardOutPath</key>
+    <string>/usr/local/var/cmem-server/cmem-server.log</string>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/cmem-server/cmem-server.err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>RUST_LOG</key>
+        <string>info</string>
+    </dict>
+</dict>
+</plist>

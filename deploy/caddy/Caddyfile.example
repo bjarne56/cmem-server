@@ -1,0 +1,44 @@
+# cmem-server reverse proxy 示例(Caddy v2)
+#
+# 用法:
+#   1) 把整个 Caddyfile 直接放到 /etc/caddy/Caddyfile 替换默认配置;或
+#   2) 把这一段放到 /etc/caddy/Caddyfile.d/cmem.conf,主 Caddyfile 加
+#      `import /etc/caddy/Caddyfile.d/*.conf`
+#   3) 把 {$DOMAIN} 改为你的域名(或用 `caddy run --envfile`)
+#
+# Caddy 会自动:
+#   - 申请 / 续签 Let's Encrypt 证书
+#   - HTTP → HTTPS 重定向
+#   - HTTP/2 / HTTP/3
+#   - gzip / zstd 压缩
+#
+# cmem-server 默认监听 127.0.0.1:8080,Caddy 反代到那里。
+
+{$DOMAIN} {
+    reverse_proxy 127.0.0.1:8080 {
+        # 让 cmem-server 看到真实客户端 IP(用于 audit_log / last_login_ip)
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        # 长连接 / chunked
+        flush_interval -1
+    }
+
+    # admin web 上的 cookie 在 HTTPS 后才安全
+    header /admin/* {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    encode gzip zstd
+
+    log {
+        output file /var/log/caddy/cmem-server.log {
+            roll_size 100MiB
+            roll_keep 7
+        }
+        format json
+    }
+}
