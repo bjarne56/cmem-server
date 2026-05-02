@@ -1,22 +1,29 @@
 [Unit]
 Description=cmem-sync server
 After=network.target
+Documentation=https://github.com/bjarne/cmem-server
 
 [Service]
 Type=simple
 User=cmem
 Group=cmem
 WorkingDirectory=/var/lib/cmem-server
-ExecStart=/usr/local/bin/cmem-server --config /etc/cmem-server/server.toml
+ExecStart=/opt/cmem-server/cmem-server -c /etc/cmem-server.toml
 Restart=on-failure
-RestartSec=2
+RestartSec=5
 
-# 安全加固
+# 安全收紧
 NoNewPrivileges=true
-PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/cmem-server /var/log/cmem-server
+ReadWritePaths=/var/lib/cmem-server
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictRealtime=true
 LimitNOFILE=65536
 
 [Install]
