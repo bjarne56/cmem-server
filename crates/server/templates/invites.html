@@ -8,9 +8,8 @@
 <div class="bg-white rounded shadow p-4 mb-6">
   <h2 class="text-sm font-semibold mb-3">{{ ctx.t("invites.create_title") }}</h2>
   <form
-    hx-post="/api/admin/invites"
-    hx-ext="json-enc"
-    hx-on::after-request="if (event.detail.successful) { window.location.reload(); }"
+    method="post"
+    action="/admin/invites"
     class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm"
   >
     <input name="max_uses" type="number" min="1" value="1" class="border rounded px-2 py-1.5" placeholder="{{ ctx.t("invites.placeholder.max_uses") }}" />

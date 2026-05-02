@@ -318,6 +318,58 @@ pub async fn user_detail_page(
 
 // ---------- /admin/invites ----------
 
+/// POST /admin/invites form-encoded(避免依赖 HTMX json-enc CDN)
+/// 创建后 302 redirect 回 /admin/invites 让 list 刷新
+#[derive(Debug, Deserialize)]
+pub struct InviteCreateForm {
+    pub max_uses: Option<String>,
+    pub expires_days: Option<String>,
+}
+
+pub async fn invites_create_form(
+    State(state): State<AppState>,
+    Extension(admin): Extension<AdminPrincipal>,
+    Form(form): Form<InviteCreateForm>,
+) -> Result<Redirect, AppError> {
+    let max_uses: i64 = form
+        .max_uses
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.parse::<i64>().unwrap_or(1))
+        .unwrap_or(1)
+        .max(1);
+    let expires_days: Option<i64> = form
+        .expires_days
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .and_then(|s| s.parse::<i64>().ok())
+        .filter(|d| *d > 0);
+
+    let code = nanoid::nanoid!(32);
+    let now = Utc::now().timestamp();
+    let expires_at = expires_days.map(|d| now + d * 86_400);
+    invites::create(&state.pool, &code, Some(&admin.user_id), now, expires_at, max_uses)
+        .await
+        .map_err(AppError::Internal)?;
+    audit::record(
+        &state.pool,
+        Some(&admin.user_id),
+        None,
+        "admin.invite_create",
+        Some("invite"),
+        Some(&code),
+        None,
+        None,
+        None,
+        now,
+    )
+    .await
+    .map_err(AppError::Internal)?;
+    Ok(Redirect::to("/admin/invites"))
+}
+
 pub async fn invites_page(
     State(state): State<AppState>,
     Extension(admin): Extension<AdminPrincipal>,

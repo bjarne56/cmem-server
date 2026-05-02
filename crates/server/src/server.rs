@@ -138,7 +138,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/", get(admin_web::dashboard))
         .route("/users", get(admin_web::users_page))
         .route("/users/:id", get(admin_web::user_detail_page))
-        .route("/invites", get(admin_web::invites_page))
+        .route("/invites", get(admin_web::invites_page).post(admin_web::invites_create_form))
         .route("/projects", get(admin_web::projects_page))
         .route("/observations", get(admin_web::observations_page))
         .route("/shares", get(admin_web::shares_page))
