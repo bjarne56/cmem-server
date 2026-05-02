@@ -318,6 +318,68 @@ pub struct SharedObservationRow {
     pub project_name: String,
 }
 
+/// 列出某项目所有未删除 observations(用于 fork-project)。
+pub async fn list_by_project(
+    pool: &SqlitePool,
+    project_id: &str,
+) -> Result<Vec<ObservationRow>> {
+    let rows = sqlx::query_as!(
+        ObservationRow,
+        r#"
+        SELECT
+            id                  AS "id!: String",
+            user_id             AS "user_id!: String",
+            machine_id          AS "machine_id!: String",
+            project_id          AS "project_id: String",
+            timestamp           AS "timestamp!: i64",
+            project_path        AS "project_path: String",
+            content             AS "content!: String",
+            obs_type            AS "obs_type: String",
+            metadata            AS "metadata: String",
+            derived_from        AS "derived_from: String",
+            derivation_chain    AS "derivation_chain: String",
+            server_seq          AS "server_seq!: i64",
+            server_received_at  AS "server_received_at!: i64"
+        FROM observations
+        WHERE project_id = ?1 AND deleted_at IS NULL
+        ORDER BY server_seq ASC
+        "#,
+        project_id,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
+}
+
+/// 按 id 取单条 observation(无 user 过滤;权限校验由调用方做)。
+pub async fn find_by_id(pool: &SqlitePool, id: &str) -> Result<Option<ObservationRow>> {
+    let row = sqlx::query_as!(
+        ObservationRow,
+        r#"
+        SELECT
+            id                  AS "id!: String",
+            user_id             AS "user_id!: String",
+            machine_id          AS "machine_id!: String",
+            project_id          AS "project_id: String",
+            timestamp           AS "timestamp!: i64",
+            project_path        AS "project_path: String",
+            content             AS "content!: String",
+            obs_type            AS "obs_type: String",
+            metadata            AS "metadata: String",
+            derived_from        AS "derived_from: String",
+            derivation_chain    AS "derivation_chain: String",
+            server_seq          AS "server_seq!: i64",
+            server_received_at  AS "server_received_at!: i64"
+        FROM observations
+        WHERE id = ?1 AND deleted_at IS NULL
+        "#,
+        id,
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row)
+}
+
 /// 拉取共享给 viewer 的 observation(target_type='user' AND target_user_id = viewer)。
 ///
 /// 注意:auto-copy mode 在 client 处理(生成本地 derived_from 副本);
