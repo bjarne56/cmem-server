@@ -1,0 +1,16 @@
+# Keep the build context tiny.
+target/
+**/target/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+.git/
+.github/
+docs/
+docker-compose.yml
+*.md
+!Cargo.toml
+.scratch/
+.idea/
+.vscode/
+.DS_Store

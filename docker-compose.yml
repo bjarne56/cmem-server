@@ -1,0 +1,60 @@
+# cmem-server + Caddy reverse proxy
+#
+# Edit DOMAIN / EMAIL below (or pass as env vars), then:
+#   docker compose up -d
+#   docker compose logs -f
+#
+# Caddy auto-issues / renews Let's Encrypt certs.
+# cmem-server data lives in the cmem-data volume; back it up via
+#   docker run --rm -v cmem-data:/data -v $(pwd):/dest alpine \
+#     sh -c "sqlite3 /data/cmem-server.db 'VACUUM INTO \"/dest/backup.db\"'"
+
+services:
+  cmem-server:
+    image: cmem-server:latest
+    build: .
+    container_name: cmem-server
+    restart: unless-stopped
+    expose:
+      - "8080"
+    volumes:
+      - cmem-data:/var/lib/cmem-server
+      # Mount your own config to customise (otherwise the image baked-in default is used)
+      # - ./cmem-server.toml:/etc/cmem-server.toml:ro
+    networks:
+      - cmem-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: cmem-caddy
+    restart: unless-stopped
+    depends_on:
+      cmem-server:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:-cmem.example.com}
+    volumes:
+      - ./deploy/docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - cmem-net
+
+networks:
+  cmem-net:
+    driver: bridge
+
+volumes:
+  cmem-data:
+  caddy-data:
+  caddy-config:

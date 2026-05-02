@@ -1,0 +1,13 @@
+# Used by docker-compose.yml — DOMAIN comes from compose env.
+{$DOMAIN} {
+    reverse_proxy cmem-server:8080 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    encode gzip zstd
+    log {
+        output stdout
+        format json
+    }
+}
