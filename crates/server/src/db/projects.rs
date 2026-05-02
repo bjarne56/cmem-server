@@ -318,6 +318,75 @@ pub async fn observation_counts_for_user(
     Ok(rows.into_iter().map(|r| (r.project_id, r.count)).collect())
 }
 
+/// admin 全局视角的项目行(带 owner username + obs 数)。
+#[derive(Debug, Clone)]
+pub struct AdminProjectRow {
+    pub id: String,
+    pub user_id: String,
+    pub username: String,
+    pub name: String,
+    pub display_name: Option<String>,
+    pub description: Option<String>,
+    pub is_excluded: i64,
+    pub created_at: i64,
+    pub observation_count: i64,
+    pub share_count: i64,
+}
+
+/// admin 全局列表 + 模糊搜 name + 过滤 user。
+pub async fn admin_search(
+    pool: &SqlitePool,
+    user_id: Option<&str>,
+    text_query: Option<&str>,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<AdminProjectRow>> {
+    let user_off: i64 = if user_id.is_some() { 0 } else { 1 };
+    let user_arg = user_id.unwrap_or("");
+    let like = text_query
+        .map(|q| format!("%{}%", q.replace('%', r"\%").replace('_', r"\_")))
+        .unwrap_or_else(|| "%".to_string());
+    let rows = sqlx::query_as!(
+        AdminProjectRow,
+        r#"
+        SELECT
+            p.id           AS "id!: String",
+            p.user_id      AS "user_id!: String",
+            u.username     AS "username!: String",
+            p.name         AS "name!: String",
+            p.display_name AS "display_name: String",
+            p.description  AS "description: String",
+            p.is_excluded  AS "is_excluded!: i64",
+            p.created_at   AS "created_at!: i64",
+            (SELECT COUNT(*) FROM observations    o WHERE o.project_id = p.id AND o.deleted_at IS NULL) AS "observation_count!: i64",
+            (SELECT COUNT(*) FROM project_shares  s WHERE s.project_id = p.id AND s.revoked_at IS NULL) AS "share_count!: i64"
+        FROM projects p
+        JOIN users u ON u.id = p.user_id
+        WHERE (?1 = 1 OR p.user_id = ?2)
+          AND (p.name LIKE ?3 ESCAPE '\' OR (p.display_name IS NOT NULL AND p.display_name LIKE ?3 ESCAPE '\'))
+        ORDER BY p.created_at DESC
+        LIMIT ?4 OFFSET ?5
+        "#,
+        user_off, user_arg,
+        like,
+        limit, offset,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
+}
+
+/// 24h 内新增项目数。
+pub async fn count_recent(pool: &SqlitePool, since: i64) -> Result<i64> {
+    let row = sqlx::query!(
+        r#"SELECT COUNT(*) AS "n!: i64" FROM projects WHERE created_at >= ?1"#,
+        since,
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(row.n)
+}
+
 /// 单项目 observation 数。
 pub async fn observation_count(pool: &SqlitePool, project_id: &str) -> Result<i64> {
     let row = sqlx::query!(

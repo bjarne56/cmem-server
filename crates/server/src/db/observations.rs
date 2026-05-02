@@ -132,6 +132,158 @@ pub async fn list_own_since(
         .collect())
 }
 
+/// admin 视角下的 observation 行(带 user/project 名)。
+#[derive(Debug, Clone)]
+pub struct AdminObservationRow {
+    pub id: String,
+    pub user_id: String,
+    pub username: String,
+    pub machine_id: String,
+    pub project_id: Option<String>,
+    pub project_name: Option<String>,
+    pub timestamp: i64,
+    pub project_path: Option<String>,
+    pub content: String,
+    pub obs_type: Option<String>,
+    pub server_seq: i64,
+    pub server_received_at: i64,
+    pub deleted_at: Option<i64>,
+}
+
+/// admin 用 — 跨用户的 observation 搜索(可选 FTS 文本 + user/project/type/时间过滤)。
+#[allow(clippy::too_many_arguments)]
+pub async fn admin_search(
+    pool: &SqlitePool,
+    text_query: Option<&str>,
+    user_id: Option<&str>,
+    project_id: Option<&str>,
+    obs_type: Option<&str>,
+    from: Option<i64>,
+    to: Option<i64>,
+    include_deleted: bool,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<AdminObservationRow>> {
+    // 把所有 nullable 过滤都用 sentinel + 条件 SQL 表达,避免动态拼 SQL。
+    let user_off: i64 = if user_id.is_some() { 0 } else { 1 };
+    let user_arg = user_id.unwrap_or("");
+    let project_off: i64 = if project_id.is_some() { 0 } else { 1 };
+    let project_arg = project_id.unwrap_or("");
+    let type_off: i64 = if obs_type.is_some() { 0 } else { 1 };
+    let type_arg = obs_type.unwrap_or("");
+    let from = from.unwrap_or(0);
+    let to = to.unwrap_or(i64::MAX);
+    let deleted_off: i64 = if include_deleted { 1 } else { 0 };
+
+    if let Some(q) = text_query {
+        if !q.trim().is_empty() {
+            let rows = sqlx::query_as!(
+                AdminObservationRow,
+                r#"
+                SELECT
+                    o.id                  AS "id!: String",
+                    o.user_id             AS "user_id!: String",
+                    u.username            AS "username!: String",
+                    o.machine_id          AS "machine_id!: String",
+                    o.project_id          AS "project_id: String",
+                    p.name                AS "project_name: String",
+                    o.timestamp           AS "timestamp!: i64",
+                    o.project_path        AS "project_path: String",
+                    o.content             AS "content!: String",
+                    o.obs_type            AS "obs_type: String",
+                    o.server_seq          AS "server_seq!: i64",
+                    o.server_received_at  AS "server_received_at!: i64",
+                    o.deleted_at          AS "deleted_at: i64"
+                FROM observations_fts
+                JOIN observations o ON o.id = observations_fts.id
+                JOIN users        u ON u.id = o.user_id
+                LEFT JOIN projects p ON p.id = o.project_id
+                WHERE observations_fts MATCH ?1
+                  AND (?2 = 1 OR o.user_id    = ?3)
+                  AND (?4 = 1 OR o.project_id = ?5)
+                  AND (?6 = 1 OR o.obs_type   = ?7)
+                  AND o.timestamp >= ?8 AND o.timestamp <= ?9
+                  AND (?10 = 1 OR o.deleted_at IS NULL)
+                ORDER BY o.server_seq DESC
+                LIMIT ?11 OFFSET ?12
+                "#,
+                q,
+                user_off, user_arg,
+                project_off, project_arg,
+                type_off, type_arg,
+                from, to,
+                deleted_off,
+                limit, offset,
+            )
+            .fetch_all(pool)
+            .await?;
+            return Ok(rows);
+        }
+    }
+
+    let rows = sqlx::query_as!(
+        AdminObservationRow,
+        r#"
+        SELECT
+            o.id                  AS "id!: String",
+            o.user_id             AS "user_id!: String",
+            u.username            AS "username!: String",
+            o.machine_id          AS "machine_id!: String",
+            o.project_id          AS "project_id: String",
+            p.name                AS "project_name: String",
+            o.timestamp           AS "timestamp!: i64",
+            o.project_path        AS "project_path: String",
+            o.content             AS "content!: String",
+            o.obs_type            AS "obs_type: String",
+            o.server_seq          AS "server_seq!: i64",
+            o.server_received_at  AS "server_received_at!: i64",
+            o.deleted_at          AS "deleted_at: i64"
+        FROM observations o
+        JOIN users        u ON u.id = o.user_id
+        LEFT JOIN projects p ON p.id = o.project_id
+        WHERE (?1 = 1 OR o.user_id    = ?2)
+          AND (?3 = 1 OR o.project_id = ?4)
+          AND (?5 = 1 OR o.obs_type   = ?6)
+          AND o.timestamp >= ?7 AND o.timestamp <= ?8
+          AND (?9 = 1 OR o.deleted_at IS NULL)
+        ORDER BY o.server_seq DESC
+        LIMIT ?10 OFFSET ?11
+        "#,
+        user_off, user_arg,
+        project_off, project_arg,
+        type_off, type_arg,
+        from, to,
+        deleted_off,
+        limit, offset,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
+}
+
+/// admin 软删:set deleted_at = now(若已经 deleted 就不动)。返回是否影响。
+pub async fn soft_delete(pool: &SqlitePool, id: &str, now: i64) -> Result<bool> {
+    let res = sqlx::query!(
+        r#"UPDATE observations SET deleted_at = ?2 WHERE id = ?1 AND deleted_at IS NULL"#,
+        id,
+        now,
+    )
+    .execute(pool)
+    .await?;
+    Ok(res.rows_affected() > 0)
+}
+
+/// 24h 内新增 observation 数量。
+pub async fn count_recent(pool: &SqlitePool, since: i64) -> Result<i64> {
+    let row = sqlx::query!(
+        r#"SELECT COUNT(*) AS "n!: i64" FROM observations WHERE server_received_at >= ?1 AND deleted_at IS NULL"#,
+        since,
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(row.n)
+}
+
 /// 当前全局最大 server_seq(用于 push 响应)。
 pub async fn max_server_seq(pool: &SqlitePool) -> Result<i64> {
     let row = sqlx::query!(

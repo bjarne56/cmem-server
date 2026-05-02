@@ -178,6 +178,86 @@ pub async fn update_mode_and_expiry(
     Ok(())
 }
 
+/// admin 全局视角 share + project/sharer/target 元信息。
+#[derive(Debug, Clone)]
+pub struct AdminShareRow {
+    pub id: String,
+    pub project_id: String,
+    pub project_name: String,
+    pub sharer_user_id: String,
+    pub sharer_username: String,
+    pub target_type: String,
+    pub target_user_id: Option<String>,
+    pub target_username: Option<String>,
+    pub share_token: Option<String>,
+    pub share_mode: String,
+    pub expires_at: Option<i64>,
+    pub created_at: i64,
+    pub revoked_at: Option<i64>,
+}
+
+/// admin 全局列出所有 share(含 revoked,按 created_at DESC)。
+pub async fn admin_list(pool: &SqlitePool, limit: i64, offset: i64) -> Result<Vec<AdminShareRow>> {
+    let rows = sqlx::query_as!(
+        AdminShareRow,
+        r#"
+        SELECT
+            s.id              AS "id!: String",
+            s.project_id      AS "project_id!: String",
+            p.name            AS "project_name!: String",
+            s.sharer_user_id  AS "sharer_user_id!: String",
+            su.username       AS "sharer_username!: String",
+            s.target_type     AS "target_type!: String",
+            s.target_user_id  AS "target_user_id: String",
+            tu.username       AS "target_username: String",
+            s.share_token     AS "share_token: String",
+            s.share_mode      AS "share_mode!: String",
+            s.expires_at      AS "expires_at: i64",
+            s.created_at      AS "created_at!: i64",
+            s.revoked_at      AS "revoked_at: i64"
+        FROM project_shares s
+        JOIN projects p   ON p.id  = s.project_id
+        JOIN users    su  ON su.id = s.sharer_user_id
+        LEFT JOIN users tu ON tu.id = s.target_user_id
+        ORDER BY s.created_at DESC
+        LIMIT ?1 OFFSET ?2
+        "#,
+        limit,
+        offset,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
+}
+
+/// 当前活跃 share 数(未 revoked 且未过期)。
+pub async fn count_active(pool: &SqlitePool, now: i64) -> Result<i64> {
+    let row = sqlx::query!(
+        r#"
+        SELECT COUNT(*) AS "n!: i64"
+        FROM project_shares
+        WHERE revoked_at IS NULL
+          AND (expires_at IS NULL OR expires_at > ?1)
+        "#,
+        now,
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(row.n)
+}
+
+/// admin 强制 revoke(不要求 sharer 一致)。
+pub async fn admin_revoke(pool: &SqlitePool, id: &str, now: i64) -> Result<bool> {
+    let res = sqlx::query!(
+        r#"UPDATE project_shares SET revoked_at = ?2 WHERE id = ?1 AND revoked_at IS NULL"#,
+        id,
+        now,
+    )
+    .execute(pool)
+    .await?;
+    Ok(res.rows_affected() > 0)
+}
+
 /// 撤销(set revoked_at)。
 pub async fn revoke(pool: &SqlitePool, id: &str, now: i64) -> Result<()> {
     sqlx::query!(
