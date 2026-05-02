@@ -146,27 +146,36 @@ pub fn build_router(state: AppState) -> Router {
         .route("/export", get(admin_web::export_page))
         .layer(from_fn_with_state(state.clone(), require_admin));
 
-    // /admin/login(POST)单独限速;GET /login 不限。
-    // 把 login POST 提前路由,然后再合并其它公开 admin 路由。
-    let mut admin_login_router = Router::new().route(
-        "/login",
-        get(admin_web::login_page).post(admin_web::do_login),
-    );
+    // /admin/login 单独 sub-router,套两层中间件:
+    //   - 内侧: CSRF(GET 发 token,POST 校验 _csrf)
+    //   - 外侧: 严格 login 限速(5/min/IP)
+    // 严格限速放最外层,这样 brute force 在中间件链最早就被 429,
+    // CSRF 校验失败 / 密码错误等都不会被算进 brute 计数(因为 brute 需要先通过 limiter)。
+    let mut admin_login_router = Router::new()
+        .route(
+            "/login",
+            get(admin_web::login_page).post(admin_web::do_login),
+        )
+        .layer(from_fn_with_state(state.clone(), csrf_protect));
     if let Some(layer) = login_layer {
         admin_login_router = admin_login_router.layer(layer);
     }
 
-    let admin_web_public = admin_login_router
+    // 其它 /admin 公开路由(logout / lang switch)只需 CSRF。
+    let admin_other_public = Router::new()
         .route("/logout", post(admin_web::do_logout))
         // 切换语言:GET /admin/lang/:code?next=/admin/users → set cookie + 302
         // 公开路由,因为登录页也需要切换语言
-        .route("/lang/:code", get(admin_web::switch_lang));
-
-    // 整个 /admin 子树挂 CSRF 中间件(GET 注入 token cookie + extension,
-    // POST/PUT/PATCH/DELETE 校验 _csrf 字段)。
-    let admin_subtree = admin_web_protected
-        .merge(admin_web_public)
+        .route("/lang/:code", get(admin_web::switch_lang))
         .layer(from_fn_with_state(state.clone(), csrf_protect));
+
+    // 受保护的 admin web 套 CSRF。其余按需拼一起。
+    let admin_protected_with_csrf = admin_web_protected
+        .layer(from_fn_with_state(state.clone(), csrf_protect));
+
+    let admin_subtree = admin_login_router
+        .merge(admin_other_public)
+        .merge(admin_protected_with_csrf);
 
     public
         .merge(protected)
