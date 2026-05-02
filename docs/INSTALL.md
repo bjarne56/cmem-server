@@ -260,24 +260,87 @@ the binary directory, the config, the data directory (unless
 
 ## Verifying the install
 
+**Recommended one-liner** — runs an 8-point health check:
+
 ```bash
-# 1. health
+sudo ./scripts/install-server.sh --check
+```
+
+Sample output (everything OK):
+
+```
+>>> 1/8 系统环境       OS: linux (Linux 6.x ...)
+>>> 2/8 Rust toolchain cargo 1.83.0
+>>> 3/8 cmem-server 二进制 /opt/cmem-server/cmem-server (v0.1.0)
+>>> 4/8 配置文件        /etc/cmem-server.toml (bind = 127.0.0.1:8080)
+>>> 5/8 数据目录        /var/lib/cmem-server (28M) + cmem-server.db (12M)
+>>> 6/8 服务状态        systemd: cmem-server.service active + enabled
+>>> 7/8 /healthz       {"status":"ok","version":"0.1.0"}
+>>> 8/8 admin 用户      1 个 admin 账号
+━━━ 全部通过 ━━━
+```
+
+Non-zero exit + `[!!]` markers point to which item failed. Suitable for cron
+monitoring (`*/5 * * * * /opt/.../install-server.sh --check >>/var/log/cmem-check.log`).
+
+Manual checks (still useful):
+
+```bash
+# health endpoint
 curl -s http://127.0.0.1:8080/healthz | jq
 # → { "status": "ok", "version": "0.1.0" }
 
-# 2. version
+# version
 /opt/cmem-server/cmem-server --version
 
-# 3. admin web
-xdg-open http://127.0.0.1:8080/admin/login   # or open ... on macOS
-# Log in with admin / admin@123 (then change it!)
+# admin web (default admin / admin@123 — change immediately!)
+xdg-open http://127.0.0.1:8080/admin/login
 
-# 4. CLI smoke
+# new-user registration (only if admin set registration_mode != closed)
+xdg-open http://127.0.0.1:8080/register
+
+# CLI smoke
 sudo -u cmem /opt/cmem-server/cmem-server -c /etc/cmem-server.toml admin stats
 
-# 5. End-to-end auth
+# End-to-end auth
 BASE=http://127.0.0.1:8080 ./scripts/smoke_auth.sh
 ```
 
-If any of the above fails, see
-[TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+If any check fails, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+---
+
+## Packaging a release tarball
+
+For internal distribution, GitHub Release artifacts, or air-gapped installs:
+
+```bash
+# Native (current host arch)
+bash scripts/pack-release.sh
+
+# Cross-build a Linux musl static binary (needs `cross` from cargo)
+bash scripts/pack-release.sh --target x86_64-unknown-linux-musl
+```
+
+Produces `dist/`:
+
+```
+cmem-server-0.1.0-<target>.tar.gz       binary + scripts + docs + config example
+cmem-server-0.1.0-<target>.tar.gz.sha256
+install-server.sh                       (top-level copy, easy to curl-pipe)
+uninstall-server.sh
+RELEASE_MANIFEST.txt                    git hash + dirty flag + build time + verify cmds
+```
+
+End-user install:
+
+```bash
+curl -fsSLO https://your-host/cmem-server-0.1.0-x86_64-unknown-linux-musl.tar.gz
+curl -fsSLO https://your-host/cmem-server-0.1.0-x86_64-unknown-linux-musl.tar.gz.sha256
+shasum -a 256 -c cmem-server-0.1.0-x86_64-unknown-linux-musl.tar.gz.sha256   # MUST verify
+tar -xzf cmem-server-0.1.0-x86_64-unknown-linux-musl.tar.gz
+cd cmem-server-0.1.0-x86_64-unknown-linux-musl
+sudo ./scripts/install-server.sh --bind 127.0.0.1:8080
+```
+
+See `RELEASE_MANIFEST.txt` for the exact verify commands.

@@ -50,6 +50,7 @@ SOURCE_DIR=""
 SKIP_SYSTEMD=0
 DO_UPGRADE=0
 DO_UNINSTALL=0
+DO_CHECK=0
 SKIP_BOOTSTRAP=0
 BOOTSTRAP_USER="admin"
 BOOTSTRAP_PASSWORD="admin@123"
@@ -65,6 +66,7 @@ while [[ $# -gt 0 ]]; do
         --no-systemd)          SKIP_SYSTEMD=1; shift ;;
         --upgrade)             DO_UPGRADE=1; shift ;;
         --uninstall)           DO_UNINSTALL=1; shift ;;
+        --check|check)         DO_CHECK=1; shift ;;
         --skip-bootstrap)      SKIP_BOOTSTRAP=1; shift ;;
         --bootstrap-password)  BOOTSTRAP_PASSWORD="$2"; shift 2 ;;
         -y|--yes)              ASSUME_YES=1; shift ;;
@@ -614,6 +616,136 @@ do_upgrade() {
     log "${GREEN}升级完成${RESET}"
 }
 
+# ─── check:验证已安装环境健康度 ───────────────────────
+# 不改任何东西;non-zero 退出 = 有警告 / 失败,便于自动化脚本 / cron 监控。
+do_check() {
+    echo
+    log "${BOLD}cmem-server 健康检查${RESET}"
+    local fails=0
+
+    # 自动检测 OS / paths(install 时设的全局变量)
+    detect_os
+
+    step "1/8 系统环境"
+    info "OS: $OS_FAMILY ($(uname -srm))"
+
+    step "2/8 Rust toolchain"
+    if command -v cargo >/dev/null 2>&1; then
+        ok "cargo $(cargo --version | awk '{print $2}')"
+    else
+        warn "cargo 未装(只跑已编译二进制不需要,但 --upgrade 时需要)"
+    fi
+
+    step "3/8 cmem-server 二进制"
+    local bin="$INSTALL_PREFIX/cmem-server"
+    if [[ -x "$bin" ]]; then
+        local v=$("$bin" --version 2>/dev/null || echo "?")
+        ok "$bin ($v)"
+    else
+        fail_check "$bin 不存在或不可执行"
+        fails=$((fails+1))
+    fi
+
+    step "4/8 配置文件"
+    local cfg="$CONFIG_PATH"
+    if [[ -f "$cfg" ]]; then
+        ok "$cfg"
+        local bind=$(grep -E '^\s*bind\s*=' "$cfg" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+        [[ -n "$bind" ]] && info "bind = $bind"
+        if grep -q 'jwt_secret\s*=\s*""' "$cfg" 2>/dev/null; then
+            fail_check "jwt_secret 为空,服务无法启动!"
+            fails=$((fails+1))
+        fi
+    else
+        fail_check "$cfg 不存在"
+        fails=$((fails+1))
+    fi
+
+    step "5/8 数据目录"
+    if [[ -d "$DATA_DIR" ]]; then
+        local sz=$(du -sh "$DATA_DIR" 2>/dev/null | awk '{print $1}')
+        ok "$DATA_DIR ($sz)"
+        if [[ -f "$DATA_DIR/cmem-server.db" ]]; then
+            local dbsz=$(du -h "$DATA_DIR/cmem-server.db" | awk '{print $1}')
+            ok "cmem-server.db ($dbsz)"
+        else
+            warn "cmem-server.db 不存在(首次启动会自建)"
+        fi
+    else
+        fail_check "$DATA_DIR 不存在"
+        fails=$((fails+1))
+    fi
+
+    step "6/8 服务状态"
+    case "$OS_FAMILY" in
+        mac)
+            if launchctl list 2>/dev/null | grep -q "com.cmem.server"; then
+                ok "launchd: com.cmem.server 已加载"
+            else
+                warn "launchd: com.cmem.server 未加载"
+                fails=$((fails+1))
+            fi
+            ;;
+        linux|*)
+            if command -v systemctl >/dev/null 2>&1; then
+                if systemctl is-active --quiet cmem-server.service 2>/dev/null; then
+                    ok "systemd: cmem-server.service active"
+                else
+                    warn "systemd: cmem-server.service 未运行(systemctl status cmem-server)"
+                    fails=$((fails+1))
+                fi
+                if systemctl is-enabled --quiet cmem-server.service 2>/dev/null; then
+                    ok "systemd: 开机自启 enabled"
+                else
+                    warn "systemd: 开机自启 disabled"
+                fi
+            else
+                warn "systemctl 不可用,跳过"
+            fi
+            ;;
+    esac
+
+    step "7/8 /healthz"
+    local port=$(echo "${BIND_ADDR:-127.0.0.1:8080}" | awk -F: '{print $NF}')
+    [[ -f "$cfg" ]] && {
+        local cfg_bind=$(grep -E '^\s*bind\s*=' "$cfg" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+        [[ -n "$cfg_bind" ]] && port="${cfg_bind##*:}"
+    }
+    local healthz=$(curl -sS --max-time 3 "http://127.0.0.1:$port/healthz" 2>/dev/null)
+    if [[ -n "$healthz" ]]; then
+        ok "/healthz: $healthz"
+    else
+        fail_check "/healthz 无响应(端口 $port 不通)"
+        fails=$((fails+1))
+    fi
+
+    step "8/8 admin 用户"
+    if [[ -x "$bin" && -f "$cfg" ]]; then
+        local admin_count=$("$bin" -c "$cfg" admin user list 2>/dev/null | grep -c 'yes' || echo 0)
+        if [[ "$admin_count" -gt 0 ]]; then
+            ok "$admin_count 个 admin 账号"
+            info "如忘记密码:$bin -c $cfg admin user reset-password --username admin"
+        else
+            warn "没有 admin 账号(运行 'cmem-server admin user create --admin' 或重跑 install --bootstrap)"
+            fails=$((fails+1))
+        fi
+    else
+        warn "二进制 / 配置缺失,跳过 admin 检查"
+    fi
+
+    echo
+    if [[ "$fails" -eq 0 ]]; then
+        log "${BOLD}${GREEN}━━━ 全部通过 ━━━${RESET}"
+        return 0
+    else
+        log "${BOLD}${YELLOW}━━━ 有 $fails 项警告/失败 ━━━${RESET}"
+        return 1
+    fi
+}
+
+# fail() 是 exit;check 时希望继续,用软失败函数
+fail_check() { log "  [${FAIL}] ${RED}$*${RESET}"; }
+
 # ─── uninstall 流程(委托独立脚本) ───────────────────
 do_uninstall() {
     local us="$(dirname "$0")/uninstall-server.sh"
@@ -627,6 +759,11 @@ do_uninstall() {
 # ─── main ──────────────────────────────────────────────
 main() {
     if [[ $DO_UNINSTALL -eq 1 ]]; then do_uninstall; fi
+
+    if [[ $DO_CHECK -eq 1 ]]; then
+        do_check
+        exit $?
+    fi
 
     if [[ $DO_UPGRADE -eq 1 ]]; then
         do_upgrade

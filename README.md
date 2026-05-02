@@ -84,6 +84,18 @@ That's it. The installer will:
 
 Open `http://127.0.0.1:8080/admin/login` and log in.
 
+Verify everything is healthy:
+
+```bash
+sudo ./scripts/install-server.sh --check
+# 8-point check: OS / Rust / binary / config / data dir / service /
+# /healthz / admin user. Non-zero exit on any failure (cron-friendly).
+```
+
+End users register at `http://127.0.0.1:8080/register` (admin controls
+whether registration is **open / invite-only / closed** at
+`/admin/settings` — takes effect instantly, no restart).
+
 ### Behind a domain (auto HTTPS via Caddy)
 
 ```bash
@@ -179,7 +191,7 @@ log, export (CSV / JSON / full DB dump). Full reference:
 | Group | Method + Path | Auth | Notes |
 |-------|---------------|------|-------|
 | public | `GET /healthz` | — | liveness |
-| auth | `POST /api/auth/register` | — | invite-code optional |
+| auth | `POST /api/auth/register` | — | hot-configurable: open/invite-only/closed (see `/admin/settings`) |
 | auth | `POST /api/auth/login` | — | returns access + refresh |
 | auth | `POST /api/auth/refresh` | refresh JWT | rotate refresh token |
 | auth | `POST /api/auth/logout` | access | revokes refresh |
@@ -200,7 +212,9 @@ log, export (CSV / JSON / full DB dump). Full reference:
 | shares | `DELETE /api/shares/:id` | access (owner) | revoke |
 | shares | `GET  /api/shared` | access | shares I received |
 | shares | `POST /api/shared/notifications/ack` | access | ack downgrades |
+| public | `GET /register` + `POST /register` | — | public web sign-up (CSRF + login rate limit) |
 | admin | `/api/admin/*` | admin JWT | full surface (16 routes) |
+| admin web | `/admin/settings` | admin cookie | hot-toggle registration_mode (open / invite_only / closed) |
 
 Full request / response shapes: [docs/API.md](docs/API.md).
 

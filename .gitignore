@@ -17,3 +17,6 @@
 
 # i18n 翻译脚本运行缓存(避免对外部 API 重复请求,但属于开发工件不入版本)
 /scripts/.translate-admin-i18n-cache.json
+
+# release 打包产物(scripts/pack-release.sh 输出)
+/dist/

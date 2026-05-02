@@ -27,7 +27,7 @@ cmem-server admin user promote --username your_username
 ## 2. 路由总览
 
 ```
-/admin/login              GET  POST   公开,设置 / 校验登录表单
+/admin/login              GET  POST   公开,设置 / 校验登录表单(底部含"注册"链接 → /register)
 /admin/logout             POST        清 cookie 跳回登录页
 /admin                    GET         dashboard(统计 + 24h 趋势)
 /admin/users              GET         用户列表 + 模糊搜 + 创建表单
@@ -38,6 +38,9 @@ cmem-server admin user promote --username your_username
 /admin/shares             GET         全局 share 列表 + 强制 revoke
 /admin/audit              GET         审计日志 + 按 user / action 前缀过滤
 /admin/export             GET         导出页(下载链接集合)
+/admin/settings           GET  POST   服务器设置(注册策略热配置)
+
+/register                 GET  POST   公开注册页(给拿到邀请码的新用户)
 
 /api/admin/stats                 GET
 /api/admin/users                 GET POST
@@ -125,11 +128,41 @@ username | email | admin | active | machines | projects | obs | created
 6. **第一个 admin 之后,通过 web 后台管理其他 admin**:不要继续让多个人手工
    `UPDATE users` 改 is_admin。
 
-## 6. 已知限制 / 后续工作
+## 6. 服务器设置(注册策略)
+
+`/admin/settings` 提供唯一一个热配置项:**用户注册策略**。三档单选:
+
+| 档位 | 行为 |
+|---|---|
+| **open** 开放注册 | 任何人可注册;邀请码可填可不填(填了管理员可追溯来源) |
+| **invite_only** 仅邀请码 | 必须有效邀请码,`/register` 强制必填,API 拒无邀请码 |
+| **closed** 禁止注册 | `/register` 显示 🚫 停用页;API 直接 400 reject |
+
+切档 → 即时生效,不需要重启。改动写入 `audit` 表,事件名
+`admin.settings.registration_mode`,`updated_by` 记录哪个 admin 改的。
+
+底层数据存在 `server_settings` k/v 表(`migration 003_server_settings.sql`)。
+首次启动时 lazy init:按 config.toml 的 `[auth].require_invite` 推算
+默认值(true → invite_only,false → open),向后兼容。
+
+## 7. 公开注册页 `/register`
+
+不在 `/admin` 下,但走相同的 CSRF + login rate limit 中间件(防 spam)。
+
+新用户使用流:
+
+1. admin 在 `/admin/invites` 创建邀请码,**私下**发给用户
+2. 用户浏览器打开 `https://cmem.example.com/register`
+3. 填:用户名 / 密码 / 确认密码 / 邮箱(可选)/ **邀请码**
+4. 提交成功 → 显示 ✓ "账号已创建,请打开 claude-mem 客户端 → Sync → 用此账号登录"
+5. 失败 → 字段回显 + 错误提示(密码不回显)
+
+`/admin/login` 页底部有"新用户?使用邀请码注册"链接 → `/register`。
+
+## 8. 已知限制 / 后续工作
 
 - IP 提取依赖 axum 的 `ConnectInfo`,在反代后面拿到的是 reverse proxy 自身的
   IP。生产建议在 Caddy 层加 `X-Forwarded-For`,然后在 server 里读取(待实现)。
-- 当前 `register` 不会强制 invite,如需,改 `[auth].require_invite = true`。
 - 模板没有 i18n,全部英文 + 一些中文注释。如需中文 UI 直接改
   `crates/server/templates/*.html`。
 - HTMX 的 `+ new user` 表单依赖 `json-enc` 扩展(已经在 `base.html` 里 CDN
