@@ -6,4 +6,5 @@
 
 pub mod export;
 pub mod handlers;
+pub mod i18n;
 pub mod templates;
