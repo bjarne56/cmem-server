@@ -14,3 +14,6 @@
 /dev-server.toml
 /.sloc-guard.toml
 !deploy/config/server.toml.example
+
+# i18n 翻译脚本运行缓存(避免对外部 API 重复请求,但属于开发工件不入版本)
+/scripts/.translate-admin-i18n-cache.json
