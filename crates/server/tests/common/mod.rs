@@ -13,7 +13,7 @@ use axum::{
 };
 use cmem_server::{
     auth::JwtCodec,
-    config::{AppConfig, AuthConfig, DatabaseConfig, ServerConfig},
+    config::{AppConfig, AuthConfig, DatabaseConfig, SecurityConfig, ServerConfig},
     db,
     server::build_router,
     state::AppState,
@@ -50,6 +50,14 @@ pub fn fast_app_config() -> AppConfig {
             path: ":memory:".into(),
         },
         auth: fast_auth_config(),
+        // 测试默认:CSRF 关、配额拉到很大,避免基础流程测试被
+        // security 加固层意外拦截。专门测 security 的测试自己另起 SecurityConfig。
+        security: SecurityConfig {
+            trusted_proxies: vec!["0.0.0.0/0".into(), "::/0".into()],
+            login_rate_per_minute: 10_000,
+            api_rate_per_minute: 10_000,
+            csrf_enabled: false,
+        },
     }
 }
 
