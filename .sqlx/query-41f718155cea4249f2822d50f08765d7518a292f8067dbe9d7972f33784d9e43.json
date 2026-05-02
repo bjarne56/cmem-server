@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO project_shares\n            (id, project_id, sharer_user_id, target_type, target_user_id,\n             share_token, share_mode, expires_at, created_at, revoked_at)\n        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "41f718155cea4249f2822d50f08765d7518a292f8067dbe9d7972f33784d9e43"
+}

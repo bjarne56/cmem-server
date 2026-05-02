@@ -1,0 +1,92 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            id                  AS \"id!: String\",\n            user_id             AS \"user_id!: String\",\n            machine_id          AS \"machine_id!: String\",\n            project_id          AS \"project_id: String\",\n            timestamp           AS \"timestamp!: i64\",\n            project_path        AS \"project_path: String\",\n            content             AS \"content!: String\",\n            obs_type            AS \"obs_type: String\",\n            metadata            AS \"metadata: String\",\n            derived_from        AS \"derived_from: String\",\n            derivation_chain    AS \"derivation_chain: String\",\n            server_seq          AS \"server_seq!: i64\",\n            server_received_at  AS \"server_received_at!: i64\"\n        FROM observations\n        WHERE user_id = ?1\n          AND server_seq > ?2\n          AND deleted_at IS NULL\n        ORDER BY server_seq ASC\n        LIMIT ?3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "user_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "machine_id!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_id: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "timestamp!: i64",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "project_path: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "content!: String",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "obs_type: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "metadata: String",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "derived_from: String",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "derivation_chain: String",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "server_seq!: i64",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "server_received_at!: i64",
+        "ordinal": 12,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "db97236b2639f18a13c99e8db745aba2841a1567b2b89b7ca2c94dccad3ef1ab"
+}

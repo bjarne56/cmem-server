@@ -13,7 +13,10 @@ use crate::{
     admin::web::{export as admin_export, handlers as admin_web},
     auth::handlers as auth_handlers,
     machines::handlers as machine_handlers,
-    middleware::require_auth,
+    middleware::{
+        api_governor_layer, csrf_protect, extract_client_ip, login_governor_layer, require_auth,
+    },
+    projects::fork as project_fork,
     projects::handlers as project_handlers,
     shares::handlers as share_handlers,
     state::AppState,
@@ -24,11 +27,36 @@ use crate::{
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn build_router(state: AppState) -> Router {
+    // 速率限制 layer。配置错误时打 warn,fall back 成"不限速"以避免启动失败。
+    let login_rate = state.config.security.login_rate_per_minute;
+    let api_rate = state.config.security.api_rate_per_minute;
+    let login_layer = match login_governor_layer(login_rate) {
+        Ok(l) => Some(l),
+        Err(e) => {
+            tracing::warn!(error = %e, "login rate limiter disabled (invalid config)");
+            None
+        }
+    };
+    let api_layer = match api_governor_layer(api_rate) {
+        Ok(l) => Some(l),
+        Err(e) => {
+            tracing::warn!(error = %e, "api rate limiter disabled (invalid config)");
+            None
+        }
+    };
+
+    // /api/auth/{login,register} —— 公开但要严格限速防 brute / spam。
+    let mut public_login_router = Router::new()
+        .route("/api/auth/register", post(auth_handlers::register))
+        .route("/api/auth/login", post(auth_handlers::login));
+    if let Some(layer) = login_layer.clone() {
+        public_login_router = public_login_router.layer(layer);
+    }
+
     let public = Router::new()
         .route("/healthz", get(healthz))
-        .route("/api/auth/register", post(auth_handlers::register))
-        .route("/api/auth/login", post(auth_handlers::login))
-        .route("/api/auth/refresh", post(auth_handlers::refresh));
+        .route("/api/auth/refresh", post(auth_handlers::refresh))
+        .merge(public_login_router);
 
     let protected = Router::new()
         // auth
@@ -47,6 +75,12 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/projects/:id", get(project_handlers::get))
         .route("/api/projects/:id", patch(project_handlers::patch))
         .route("/api/projects/:id", delete(project_handlers::delete))
+        // fork
+        .route("/api/projects/:id/fork", post(project_fork::fork_project))
+        .route(
+            "/api/observations/:id/fork",
+            post(project_fork::fork_observation),
+        )
         // sync
         .route("/api/sync/push", post(sync_handlers::push_handler))
         .route("/api/sync/pull", post(sync_handlers::pull_handler))
@@ -62,7 +96,7 @@ pub fn build_router(state: AppState) -> Router {
         )
         .layer(from_fn_with_state(state.clone(), require_auth));
 
-    let admin_api_router = Router::new()
+    let mut admin_api_router = Router::new()
         .route("/stats", get(admin_api::get_stats))
         .route("/users", get(admin_api::list_users).post(admin_api::create_user))
         .route(
@@ -96,6 +130,9 @@ pub fn build_router(state: AppState) -> Router {
         .route("/export/full.db.gz", get(admin_export::export_full_db))
         .route("/export/user/:id.zip", get(admin_export::export_user_zip))
         .layer(from_fn_with_state(state.clone(), require_admin));
+    if let Some(layer) = api_layer.clone() {
+        admin_api_router = admin_api_router.layer(layer);
+    }
 
     let admin_web_protected = Router::new()
         .route("/", get(admin_web::dashboard))
@@ -109,20 +146,36 @@ pub fn build_router(state: AppState) -> Router {
         .route("/export", get(admin_web::export_page))
         .layer(from_fn_with_state(state.clone(), require_admin));
 
-    let admin_web_public = Router::new()
-        .route(
-            "/login",
-            get(admin_web::login_page).post(admin_web::do_login),
-        )
+    // /admin/login(POST)单独限速;GET /login 不限。
+    // 把 login POST 提前路由,然后再合并其它公开 admin 路由。
+    let mut admin_login_router = Router::new().route(
+        "/login",
+        get(admin_web::login_page).post(admin_web::do_login),
+    );
+    if let Some(layer) = login_layer {
+        admin_login_router = admin_login_router.layer(layer);
+    }
+
+    let admin_web_public = admin_login_router
         .route("/logout", post(admin_web::do_logout))
         // 切换语言:GET /admin/lang/:code?next=/admin/users → set cookie + 302
         // 公开路由,因为登录页也需要切换语言
         .route("/lang/:code", get(admin_web::switch_lang));
 
+    // 整个 /admin 子树挂 CSRF 中间件(GET 注入 token cookie + extension,
+    // POST/PUT/PATCH/DELETE 校验 _csrf 字段)。
+    let admin_subtree = admin_web_protected
+        .merge(admin_web_public)
+        .layer(from_fn_with_state(state.clone(), csrf_protect));
+
     public
         .merge(protected)
         .nest("/api/admin", admin_api_router)
-        .nest("/admin", admin_web_protected.merge(admin_web_public))
+        .nest("/admin", admin_subtree)
+        // 全局最外层:把真实 client IP 解析进 extensions,所有下游(限速 /
+        // CSRF / handlers / audit)都从 extensions 拿。这一层必须是最外层,
+        // 因为 ClientIp 是限速 KeyExtractor 的依赖。
+        .layer(from_fn_with_state(state.clone(), extract_client_ip))
         .with_state(state)
 }
 

@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            id          AS \"id!: i64\",\n            user_id     AS \"user_id: String\",\n            machine_id  AS \"machine_id: String\",\n            action      AS \"action!: String\",\n            target_type AS \"target_type: String\",\n            target_id   AS \"target_id: String\",\n            created_at  AS \"created_at!: i64\"\n        FROM audit_log\n        WHERE (?1 = 1 OR user_id = ?2)\n          AND action LIKE ?3 ESCAPE '\\'\n          AND created_at >= ?4\n          AND created_at <= ?5\n        ORDER BY created_at DESC\n        LIMIT ?6\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "user_id: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "machine_id: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "action!: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_type: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_id: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 6,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "a4814a037135436b35f44157a96057bef5ab8c3f0e46dd546812113e337ca9b5"
+}

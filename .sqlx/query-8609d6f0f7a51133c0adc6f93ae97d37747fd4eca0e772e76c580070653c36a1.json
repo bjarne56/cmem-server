@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE project_shares SET revoked_at = ?2 WHERE id = ?1 AND revoked_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "8609d6f0f7a51133c0adc6f93ae97d37747fd4eca0e772e76c580070653c36a1"
+}

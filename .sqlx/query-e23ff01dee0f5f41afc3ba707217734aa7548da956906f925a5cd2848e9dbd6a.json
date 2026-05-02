@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT OR IGNORE INTO observations\n            (id, user_id, machine_id, project_id, timestamp, project_path,\n             content, obs_type, metadata, derived_from, derivation_chain,\n             server_seq, server_received_at, deleted_at)\n        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, NULL)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 13
+    },
+    "nullable": []
+  },
+  "hash": "e23ff01dee0f5f41afc3ba707217734aa7548da956906f925a5cd2848e9dbd6a"
+}

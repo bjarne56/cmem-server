@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT id AS \"id!: String\", username AS \"username!: String\"\n        FROM users\n        WHERE username = ?1 COLLATE NOCASE\n          AND is_active = 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "username!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "18b3dc740f1dd3207c0208ef1c27cc362feba9b048a61a0f0fe52e4e449b2f0a"
+}

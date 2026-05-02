@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE invite_codes\n        SET use_count = use_count + 1,\n            used_by   = COALESCE(used_by, ?2),\n            used_at   = COALESCE(used_at, ?3)\n        WHERE code = ?1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "078f5417f17f7ebddef31a32ab0bbc7999767b05e6ddb4fbbb99789a0c6b8efc"
+}

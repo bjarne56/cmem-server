@@ -1,0 +1,86 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            u.id              AS \"id!: String\",\n            u.username        AS \"username!: String\",\n            u.email           AS \"email: String\",\n            u.is_admin        AS \"is_admin!: i64\",\n            u.is_active       AS \"is_active!: i64\",\n            u.created_at      AS \"created_at!: i64\",\n            u.last_login_at   AS \"last_login_at: i64\",\n            u.registration_ip AS \"registration_ip: String\",\n            u.last_login_ip   AS \"last_login_ip: String\",\n            (SELECT COUNT(*) FROM machines     m WHERE m.user_id = u.id AND m.revoked = 0)        AS \"machine_count!: i64\",\n            (SELECT COUNT(*) FROM projects     p WHERE p.user_id = u.id)                          AS \"project_count!: i64\",\n            (SELECT COUNT(*) FROM observations o WHERE o.user_id = u.id AND o.deleted_at IS NULL) AS \"observation_count!: i64\"\n        FROM users u\n        WHERE u.username LIKE ?1 ESCAPE '\\' OR (u.email IS NOT NULL AND u.email LIKE ?1 ESCAPE '\\')\n        ORDER BY u.created_at DESC\n        LIMIT ?2 OFFSET ?3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "username!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "email: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_admin!: i64",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "is_active!: i64",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "last_login_at: i64",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "registration_ip: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_login_ip: String",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "machine_count!: i64",
+        "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "project_count!: i64",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "observation_count!: i64",
+        "ordinal": 11,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8e6729acb2cacb385d65690a402587c2cc548b1c3be603132691363004bebc8c"
+}

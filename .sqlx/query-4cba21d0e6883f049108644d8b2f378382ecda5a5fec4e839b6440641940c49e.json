@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT user_id AS \"user_id!: String\", id AS \"id!: String\"\n            FROM machines\n            WHERE machine_token_hash = ?1 AND revoked = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "4cba21d0e6883f049108644d8b2f378382ecda5a5fec4e839b6440641940c49e"
+}

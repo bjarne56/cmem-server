@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE observations SET deleted_at = ?2 WHERE id = ?1 AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "5b448b056156106a6c1b08afaa99d6b0806edadcf809419aae2f78086cb9e779"
+}

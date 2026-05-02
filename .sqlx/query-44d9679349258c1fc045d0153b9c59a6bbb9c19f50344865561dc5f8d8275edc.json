@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            id              AS \"id!: i64\",\n            project_id      AS \"project_id!: String\",\n            target_user_id  AS \"target_user_id!: String\",\n            old_mode        AS \"old_mode!: String\",\n            new_mode        AS \"new_mode!: String\",\n            created_at      AS \"created_at!: i64\"\n        FROM share_mode_downgrades\n        WHERE target_user_id = ?1 AND notified_at IS NULL\n        ORDER BY created_at ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "project_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_user_id!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "old_mode!: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "new_mode!: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 5,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "44d9679349258c1fc045d0153b9c59a6bbb9c19f50344865561dc5f8d8275edc"
+}

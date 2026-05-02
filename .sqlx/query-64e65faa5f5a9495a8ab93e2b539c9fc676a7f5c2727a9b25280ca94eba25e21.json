@@ -1,0 +1,116 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            o.id                  AS \"id!: String\",\n            o.user_id             AS \"user_id!: String\",\n            o.machine_id          AS \"machine_id!: String\",\n            o.project_id          AS \"project_id!: String\",\n            o.timestamp           AS \"timestamp!: i64\",\n            o.project_path        AS \"project_path: String\",\n            o.content             AS \"content!: String\",\n            o.obs_type            AS \"obs_type: String\",\n            o.metadata            AS \"metadata: String\",\n            o.derived_from        AS \"derived_from: String\",\n            o.derivation_chain    AS \"derivation_chain: String\",\n            o.server_seq          AS \"server_seq!: i64\",\n            o.server_received_at  AS \"server_received_at!: i64\",\n            ps.share_mode         AS \"share_mode!: String\",\n            ps.sharer_user_id     AS \"sharer_user_id!: String\",\n            su.username           AS \"sharer_username!: String\",\n            p.name                AS \"project_name!: String\"\n        FROM observations o\n        JOIN project_shares ps\n          ON ps.project_id = o.project_id\n         AND ps.target_type = 'user'\n         AND ps.target_user_id = ?1\n         AND ps.revoked_at IS NULL\n         AND (ps.expires_at IS NULL OR ps.expires_at > ?4)\n        JOIN projects p ON p.id = o.project_id\n        JOIN users   su ON su.id = ps.sharer_user_id\n        WHERE o.server_seq > ?2\n          AND o.deleted_at IS NULL\n          AND o.project_id IS NOT NULL\n        ORDER BY o.server_seq ASC\n        LIMIT ?3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "user_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "machine_id!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_id!: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "timestamp!: i64",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "project_path: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "content!: String",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "obs_type: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "metadata: String",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "derived_from: String",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "derivation_chain: String",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "server_seq!: i64",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "server_received_at!: i64",
+        "ordinal": 12,
+        "type_info": "Integer"
+      },
+      {
+        "name": "share_mode!: String",
+        "ordinal": 13,
+        "type_info": "Text"
+      },
+      {
+        "name": "sharer_user_id!: String",
+        "ordinal": 14,
+        "type_info": "Text"
+      },
+      {
+        "name": "sharer_username!: String",
+        "ordinal": 15,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_name!: String",
+        "ordinal": 16,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "64e65faa5f5a9495a8ab93e2b539c9fc676a7f5c2727a9b25280ca94eba25e21"
+}

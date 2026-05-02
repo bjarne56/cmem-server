@@ -1,0 +1,92 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            s.id              AS \"id!: String\",\n            s.project_id      AS \"project_id!: String\",\n            p.name            AS \"project_name!: String\",\n            s.sharer_user_id  AS \"sharer_user_id!: String\",\n            su.username       AS \"sharer_username!: String\",\n            s.target_type     AS \"target_type!: String\",\n            s.target_user_id  AS \"target_user_id: String\",\n            tu.username       AS \"target_username: String\",\n            s.share_token     AS \"share_token: String\",\n            s.share_mode      AS \"share_mode!: String\",\n            s.expires_at      AS \"expires_at: i64\",\n            s.created_at      AS \"created_at!: i64\",\n            s.revoked_at      AS \"revoked_at: i64\"\n        FROM project_shares s\n        JOIN projects p   ON p.id  = s.project_id\n        JOIN users    su  ON su.id = s.sharer_user_id\n        LEFT JOIN users tu ON tu.id = s.target_user_id\n        ORDER BY s.created_at DESC\n        LIMIT ?1 OFFSET ?2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_name!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "sharer_user_id!: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "sharer_username!: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_type!: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_user_id: String",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_username: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "share_token: String",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "share_mode!: String",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "expires_at: i64",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "revoked_at: i64",
+        "ordinal": 12,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "d4cdc50835f4c3f69dfcad12ffbc49a1d54a10febfeafdb4c274f5379f6bea36"
+}

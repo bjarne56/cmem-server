@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE server_seq_counter\n        SET value = value + 1\n        WHERE id = 1\n        RETURNING value AS \"value!: i64\"\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "value!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ad6f55791c7d1ccb741b60b27d9b8813a4fff43204fc3688e62154674dd0a34c"
+}

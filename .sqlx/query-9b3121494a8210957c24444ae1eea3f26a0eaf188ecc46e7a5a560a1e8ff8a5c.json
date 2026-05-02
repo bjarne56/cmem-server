@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO share_mode_downgrades\n            (project_id, target_user_id, old_mode, new_mode, notified_at, created_at)\n        VALUES (?1, ?2, ?3, ?4, NULL, ?5)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "9b3121494a8210957c24444ae1eea3f26a0eaf188ecc46e7a5a560a1e8ff8a5c"
+}

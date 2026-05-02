@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO project_paths\n            (project_id, machine_id, path, project_marker_id, created_at)\n        VALUES (?1, ?2, ?3, ?4, ?5)\n        ON CONFLICT(machine_id, path) DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "03632cc8e3169576db283e6bf10dbddfd82802466aef1074d7d383805fb0f96b"
+}

@@ -1,0 +1,92 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    o.id                  AS \"id!: String\",\n                    o.user_id             AS \"user_id!: String\",\n                    u.username            AS \"username!: String\",\n                    o.machine_id          AS \"machine_id!: String\",\n                    o.project_id          AS \"project_id: String\",\n                    p.name                AS \"project_name: String\",\n                    o.timestamp           AS \"timestamp!: i64\",\n                    o.project_path        AS \"project_path: String\",\n                    o.content             AS \"content!: String\",\n                    o.obs_type            AS \"obs_type: String\",\n                    o.server_seq          AS \"server_seq!: i64\",\n                    o.server_received_at  AS \"server_received_at!: i64\",\n                    o.deleted_at          AS \"deleted_at: i64\"\n                FROM observations_fts\n                JOIN observations o ON o.id = observations_fts.id\n                JOIN users        u ON u.id = o.user_id\n                LEFT JOIN projects p ON p.id = o.project_id\n                WHERE observations_fts MATCH ?1\n                  AND (?2 = 1 OR o.user_id    = ?3)\n                  AND (?4 = 1 OR o.project_id = ?5)\n                  AND (?6 = 1 OR o.obs_type   = ?7)\n                  AND o.timestamp >= ?8 AND o.timestamp <= ?9\n                  AND (?10 = 1 OR o.deleted_at IS NULL)\n                ORDER BY o.server_seq DESC\n                LIMIT ?11 OFFSET ?12\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "user_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "username!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "machine_id!: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_id: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_name: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "timestamp!: i64",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "project_path: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "content!: String",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "obs_type: String",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "server_seq!: i64",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "server_received_at!: i64",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "deleted_at: i64",
+        "ordinal": 12,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "ad0a965e46d0491dc169bfe1878d3c27f7f99c9022c51660ee58668d852897bf"
+}

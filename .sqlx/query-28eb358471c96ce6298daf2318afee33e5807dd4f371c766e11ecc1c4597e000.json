@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT project_id AS \"project_id!: String\",\n               COUNT(*)   AS \"count!: i64\"\n        FROM observations\n        WHERE user_id = ?1 AND project_id IS NOT NULL AND deleted_at IS NULL\n        GROUP BY project_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "project_id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "count!: i64",
+        "ordinal": 1,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "28eb358471c96ce6298daf2318afee33e5807dd4f371c766e11ecc1c4597e000"
+}

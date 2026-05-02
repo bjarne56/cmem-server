@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            id           AS \"id!: String\",\n            user_id      AS \"user_id!: String\",\n            name         AS \"name!: String\",\n            description  AS \"description: String\",\n            last_seen_at AS \"last_seen_at: i64\",\n            created_at   AS \"created_at!: i64\",\n            revoked      AS \"revoked!: i64\"\n        FROM machines\n        WHERE user_id = ?1 AND name = ?2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "user_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "name!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "description: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_seen_at: i64",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "revoked!: i64",
+        "ordinal": 6,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "5b06466f0308e5a6bcab7ef9a06dc5f2522a59af9a4555efa7360bb6071fcbfc"
+}

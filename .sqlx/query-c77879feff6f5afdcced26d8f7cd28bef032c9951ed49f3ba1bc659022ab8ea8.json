@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE projects SET description = ?3 WHERE user_id = ?1 AND id = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "c77879feff6f5afdcced26d8f7cd28bef032c9951ed49f3ba1bc659022ab8ea8"
+}

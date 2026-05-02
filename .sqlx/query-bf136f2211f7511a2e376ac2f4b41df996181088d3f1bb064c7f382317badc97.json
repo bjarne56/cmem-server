@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE projects SET is_excluded = ?3 WHERE user_id = ?1 AND id = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "bf136f2211f7511a2e376ac2f4b41df996181088d3f1bb064c7f382317badc97"
+}

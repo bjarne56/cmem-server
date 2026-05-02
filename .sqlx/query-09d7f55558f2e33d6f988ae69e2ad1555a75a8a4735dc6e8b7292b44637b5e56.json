@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            id              AS \"id!: String\",\n            project_id      AS \"project_id!: String\",\n            sharer_user_id  AS \"sharer_user_id!: String\",\n            target_type     AS \"target_type!: String\",\n            target_user_id  AS \"target_user_id: String\",\n            share_token     AS \"share_token: String\",\n            share_mode      AS \"share_mode!: String\",\n            expires_at      AS \"expires_at: i64\",\n            created_at      AS \"created_at!: i64\",\n            revoked_at      AS \"revoked_at: i64\"\n        FROM project_shares\n        WHERE target_type = 'user'\n          AND target_user_id = ?1\n          AND revoked_at IS NULL\n          AND (expires_at IS NULL OR expires_at > ?2)\n        ORDER BY created_at DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "project_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "sharer_user_id!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_type!: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "target_user_id: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "share_token: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "share_mode!: String",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "expires_at: i64",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "revoked_at: i64",
+        "ordinal": 9,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "09d7f55558f2e33d6f988ae69e2ad1555a75a8a4735dc6e8b7292b44637b5e56"
+}

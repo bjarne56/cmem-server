@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE users SET last_login_at = ?2, last_login_ip = ?3 WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "c5edd6efbc3ee98570da2f6cb630e6e17f735064032624b0886673afdec4b7fe"
+}

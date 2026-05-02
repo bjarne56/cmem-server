@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            code        AS \"code!: String\",\n            created_by  AS \"created_by: String\",\n            created_at  AS \"created_at!: i64\",\n            expires_at  AS \"expires_at: i64\",\n            max_uses    AS \"max_uses!: i64\",\n            use_count   AS \"use_count!: i64\",\n            used_by     AS \"used_by: String\",\n            used_at     AS \"used_at: i64\"\n        FROM invite_codes\n        WHERE code = ?1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "code!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_by: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "expires_at: i64",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "max_uses!: i64",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "use_count!: i64",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "used_by: String",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "used_at: i64",
+        "ordinal": 7,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "902f1d4c2619c5ea948f4cf89be1e8f701af2a8cb63ab801a0ef1aba0d8bd00c"
+}

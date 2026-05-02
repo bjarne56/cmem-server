@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE share_mode_downgrades\n            SET notified_at = ?3\n            WHERE id = ?1 AND target_user_id = ?2 AND notified_at IS NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "6b831c80d7988bcabebc538911e6eb6f46debc6dd7054da259446556a40c73d4"
+}
