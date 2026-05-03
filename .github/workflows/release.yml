@@ -1,0 +1,143 @@
+# 自动 release workflow:推 tag(v*)就跑跨平台 build + pack-release.sh + 上传 GitHub release
+#
+# 用法:
+#   ./scripts/release.sh 0.2.0    # 本地 bump version + git tag
+#   git push origin v0.2.0         # 推 tag → 触发本 workflow
+#
+# 产物:
+#   GitHub release 附件:
+#     - cmem-server-X.Y.Z-x86_64-unknown-linux-musl.tar.gz       (静态 musl,通用 Linux)
+#     - cmem-server-X.Y.Z-aarch64-unknown-linux-musl.tar.gz      (ARM64 Linux,小机 / RPi / VPS)
+#     - cmem-server-X.Y.Z-aarch64-apple-darwin.tar.gz            (Apple Silicon)
+#     - cmem-server-X.Y.Z-x86_64-apple-darwin.tar.gz             (Intel Mac)
+#     - 每个 .tar.gz 配套 .sha256
+#     - install-server.sh / uninstall-server.sh(独立托管,curl-pipe 用)
+#     - RELEASE_MANIFEST.txt
+#
+# 触发:仅 tag push v*(如 v0.2.0)。手动也可用 workflow_dispatch。
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'release tag (e.g. v0.2.0,仅 dispatch 时填)'
+        required: true
+
+permissions:
+  contents: write   # 创建 release + 上传 asset
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+            use_cross: true
+          - target: aarch64-unknown-linux-musl
+            runner: ubuntu-latest
+            use_cross: true
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+            use_cross: false
+          - target: x86_64-apple-darwin
+            runner: macos-latest
+            use_cross: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: install cross (linux)
+        if: matrix.use_cross
+        run: cargo install cross --locked
+
+      - name: cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: build
+        run: |
+          if [[ "${{ matrix.use_cross }}" == "true" ]]; then
+            cross build --release --target ${{ matrix.target }} --bin cmem-server
+          else
+            cargo build --release --target ${{ matrix.target }} --bin cmem-server
+          fi
+        env:
+          # sqlx offline mode — .sqlx 缓存已 commit
+          SQLX_OFFLINE: "true"
+
+      - name: pack release tarball
+        run: bash scripts/pack-release.sh --skip-build --target ${{ matrix.target }}
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmem-server-${{ matrix.target }}
+          path: |
+            dist/cmem-server-*.tar.gz
+            dist/cmem-server-*.tar.gz.sha256
+            dist/RELEASE_MANIFEST.txt
+            dist/install-server.sh
+            dist/uninstall-server.sh
+
+  release:
+    name: create github release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: gather assets
+        run: |
+          mkdir -p release-assets
+          # 各 target 的 tarball + sha256
+          find artifacts -name "cmem-server-*.tar.gz*" -exec cp {} release-assets/ \;
+          # 取一份 install / uninstall 脚本(所有 target 都一样)
+          find artifacts -name "install-server.sh"   -print -quit | xargs -I{} cp {} release-assets/
+          find artifacts -name "uninstall-server.sh" -print -quit | xargs -I{} cp {} release-assets/
+          # 合并各 target 的 manifest 成单文件
+          for d in artifacts/*/; do
+            target=$(basename "$d")
+            echo "═══════════════ $target ═══════════════"
+            [[ -f "$d/RELEASE_MANIFEST.txt" ]] && cat "$d/RELEASE_MANIFEST.txt"
+            echo
+          done > release-assets/RELEASE_NOTES.md
+          ls -lh release-assets/
+
+      - name: extract tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: create github release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          body_path: release-assets/RELEASE_NOTES.md
+          files: |
+            release-assets/cmem-server-*.tar.gz
+            release-assets/cmem-server-*.tar.gz.sha256
+            release-assets/install-server.sh
+            release-assets/uninstall-server.sh
+          draft: false
+          prerelease: ${{ contains(steps.tag.outputs.tag, '-') }}
