@@ -6,12 +6,11 @@
 [![SQLite](https://img.shields.io/badge/sqlite-3-003B57.svg)](https://www.sqlite.org/)
 [![Status](https://img.shields.io/badge/status-alpha-yellow.svg)](docs/Implementation_Plan.md)
 
-> **Self-hosted multi-machine sync + project sharing server for
-> [claude-mem](https://github.com/thedotmack/claude-mem).**
-> One Rust binary. One SQLite file. argon2id + JWT. systemd / launchd /
-> Docker. Built-in admin web console. ~10 MB binary, ~5 MB RSS at idle.
+> **claude-mem-plus 的远程备份 + 自动同步 + 多用户共享 + 团队共享服务端。**
+> 一个 Rust 二进制。一个 SQLite 文件。argon2id + JWT。systemd / launchd /
+> Docker。内置 admin web 控制台。~10 MB 二进制，~5 MB RSS 空闲内存。
 
-If you use [claude-mem](https://github.com/thedotmack/claude-mem) on more
+If you use [claude-mem-plus](https://github.com/bjarne56/claude-mem-plus) on more
 than one machine, or want to share project memory with teammates,
 **cmem-server** is the missing piece: a single-binary server that
 synchronises observations across machines and lets you share entire
@@ -107,7 +106,7 @@ domain to `127.0.0.1:8080` with auto-issued Let's Encrypt certs.
 
 ### Connect a client
 
-On your laptop, point [claude-mem](https://github.com/thedotmack/claude-mem)
+On your laptop, point [claude-mem-plus](https://github.com/bjarne56/claude-mem-plus)
 at the server (the `--server` flag is consumed by the
 `install-client.sh` companion script):
 
