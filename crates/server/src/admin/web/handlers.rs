@@ -771,6 +771,7 @@ pub async fn projects_page(
             created: fmt_ts(r.created_at),
             observation_count: r.observation_count,
             share_count: r.share_count,
+            path_count: r.path_count,
             is_excluded: r.is_excluded != 0,
         })
         .collect();
@@ -780,6 +781,58 @@ pub async fn projects_page(
         query,
         user_filter,
         rows: view,
+    })
+}
+
+// ---------- /admin/projects/:id  fork v12.7.2-plus.1 项目身份解耦详情 ----------
+
+pub async fn project_detail_page(
+    State(state): State<AppState>,
+    Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
+    Path(project_id): Path<String>,
+) -> Result<Response, AppError> {
+    // 复用 admin_search 加自身 id 过滤(避免重复写一个 fetch_by_id)
+    let all = projects::admin_search(&state.pool, None, None, 10000, 0)
+        .await
+        .map_err(AppError::Internal)?;
+    let row = all
+        .into_iter()
+        .find(|r| r.id == project_id)
+        .ok_or(AppError::NotFound)?;
+
+    let project_view = t::ProjectRow {
+        id: row.id.clone(),
+        name: row.name,
+        display_name: row.display_name.unwrap_or_default(),
+        username: row.username,
+        created: fmt_ts(row.created_at),
+        observation_count: row.observation_count,
+        share_count: row.share_count,
+        path_count: row.path_count,
+        is_excluded: row.is_excluded != 0,
+    };
+
+    let paths = projects::list_paths(&state.pool, &project_id)
+        .await
+        .map_err(AppError::Internal)?;
+    let paths_view: Vec<t::ProjectPathView> = paths
+        .into_iter()
+        .map(|p| t::ProjectPathView {
+            machine_id: p.machine_id,
+            machine_name: p.machine_name,
+            path: p.path,
+            project_marker_id: p.project_marker_id.unwrap_or_default(),
+            created: fmt_ts(p.created_at),
+            last_seen: fmt_ts(p.last_seen_at),
+        })
+        .collect();
+
+    render(&t::ProjectDetailPage {
+        ctx,
+        admin_username: &admin.username,
+        project: project_view,
+        paths: paths_view,
     })
 }
 

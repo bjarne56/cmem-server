@@ -237,5 +237,15 @@
   "users.placeholder.password": "密码(>=8 位)",
   "users.placeholder.search": "搜索用户名 / 邮箱...",
   "users.placeholder.username": "用户名",
-  "users.title": "用户"
+  "users.title": "用户",
+  "projects.col.paths": "路径数",
+  "project_detail.title": "项目详情",
+  "project_detail.paths.title": "已登记路径(跨机器)",
+  "project_detail.paths.hint": "由 fork 客户端通过 cmem-sync push 自动同步;按 (machine_id, path) 全局唯一。",
+  "project_detail.paths.col.machine": "机器",
+  "project_detail.paths.col.path": "路径",
+  "project_detail.paths.col.marker": "锚点 ID",
+  "project_detail.paths.col.added": "添加时间",
+  "project_detail.paths.col.last_seen": "上次活跃",
+  "project_detail.paths.empty": "(无登记路径)"
 }

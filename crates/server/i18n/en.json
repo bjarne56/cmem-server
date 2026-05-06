@@ -237,5 +237,15 @@
   "users.placeholder.password": "password (>=8)",
   "users.placeholder.search": "search username / email...",
   "users.placeholder.username": "username",
-  "users.title": "Users"
+  "users.title": "Users",
+  "projects.col.paths": "paths",
+  "project_detail.title": "Project detail",
+  "project_detail.paths.title": "Registered paths (cross-machine)",
+  "project_detail.paths.hint": "Auto-synced from fork clients via cmem-sync push; UNIQUE per (machine_id, path).",
+  "project_detail.paths.col.machine": "machine",
+  "project_detail.paths.col.path": "path",
+  "project_detail.paths.col.marker": "marker ID",
+  "project_detail.paths.col.added": "added at",
+  "project_detail.paths.col.last_seen": "last seen",
+  "project_detail.paths.empty": "(no registered paths)"
 }

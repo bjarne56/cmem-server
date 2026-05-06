@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} — {{ ctx.t("project_detail.title") }}{% endblock %}
+{% block content %}
+
+<nav class="text-sm mb-4">
+  <a href="/admin/projects" class="text-indigo-600 hover:underline">← {{ ctx.t("projects.title") }}</a>
+</nav>
+
+<h1 class="text-2xl font-semibold mb-2">
+  {{ project.name }}
+  {% if !project.display_name.is_empty() %}<span class="text-gray-500 text-base font-normal">({{ project.display_name }})</span>{% endif %}
+</h1>
+<div class="text-sm text-gray-500 mb-6">
+  ID <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{{ project.id }}</code>
+  · {{ ctx.t("projects.col.owner") }} <a href="/admin/observations?user={{ project.username }}" class="text-indigo-600 hover:underline">{{ project.username }}</a>
+  · {{ ctx.t("projects.col.created") }} {{ project.created }}
+</div>
+
+<div class="grid grid-cols-3 gap-4 mb-6">
+  <div class="bg-white rounded shadow p-4">
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("projects.col.obs") }}</div>
+    <div class="text-2xl font-semibold">{{ project.observation_count }}</div>
+  </div>
+  <div class="bg-white rounded shadow p-4">
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("projects.col.shares") }}</div>
+    <div class="text-2xl font-semibold">{{ project.share_count }}</div>
+  </div>
+  <div class="bg-white rounded shadow p-4">
+    <div class="text-xs uppercase text-gray-500">{{ ctx.t("projects.col.paths") }}</div>
+    <div class="text-2xl font-semibold">{{ project.path_count }}</div>
+  </div>
+</div>
+
+<h2 class="text-lg font-medium mb-3">{{ ctx.t("project_detail.paths.title") }}</h2>
+<p class="text-sm text-gray-500 mb-3">{{ ctx.t("project_detail.paths.hint") }}</p>
+
+<div class="bg-white rounded shadow overflow-hidden">
+  <table class="min-w-full text-sm">
+    <thead class="bg-gray-100 text-xs uppercase text-gray-600">
+      <tr>
+        <th class="text-left px-3 py-2">{{ ctx.t("project_detail.paths.col.machine") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("project_detail.paths.col.path") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("project_detail.paths.col.marker") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("project_detail.paths.col.added") }}</th>
+        <th class="text-left px-3 py-2">{{ ctx.t("project_detail.paths.col.last_seen") }}</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y">
+      {% for p in paths %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-3 py-2 whitespace-nowrap">
+          <span class="font-medium">{{ p.machine_name }}</span>
+          <code class="block text-xs text-gray-400">{{ p.machine_id }}</code>
+        </td>
+        <td class="px-3 py-2 font-mono text-xs">{{ p.path }}</td>
+        <td class="px-3 py-2 font-mono text-xs text-gray-500">
+          {% if p.project_marker_id.is_empty() %}—{% else %}{{ p.project_marker_id }}{% endif %}
+        </td>
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ p.created }}</td>
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ p.last_seen }}</td>
+      </tr>
+      {% endfor %}
+      {% if paths.is_empty() %}
+      <tr><td colspan="5" class="text-center text-gray-400 py-6">{{ ctx.t("project_detail.paths.empty") }}</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

@@ -182,6 +182,60 @@ pub async fn push(
     .await
     .map_err(AppError::Db)?;
 
+    // ── fork v12.7.2-plus.1:同步本机 project_paths ──────────────
+    // 每条 PushPath:project_name + marker_id 解析到 server-side project_id,
+    // 然后按 (machine_id, path) UPSERT 进 server.project_paths
+    let mut paths_synced: usize = 0;
+    for p in &req.paths {
+        // 用同样的 resolve_project 逻辑(与 observation 一致),复用 cache
+        let cache_key = format!(
+            "{}::{}::{}",
+            p.project_marker_id.as_deref().unwrap_or(""),
+            &p.project_name,
+            &p.path
+        );
+        let project_id = match project_cache.get(&cache_key) {
+            Some(pid) => pid.clone(),
+            None => {
+                let submitted = SubmittedProjectInfo {
+                    marker_id: p.project_marker_id.clone(),
+                    name: Some(p.project_name.clone()),
+                    path: Some(p.path.clone()),
+                };
+                let pid = resolve_project(&mut tx, &user_id, &machine_id, &submitted, now)
+                    .await
+                    .map_err(AppError::Internal)?;
+                project_cache.insert(cache_key, pid.clone());
+                pid
+            }
+        };
+
+        let Some(pid) = project_id else { continue }; // 解析不到就跳过
+
+        // UPSERT:同 (machine_id, path) 已存在 → 更新 last_seen_at + project_id
+        // 不存在 → INSERT
+        sqlx::query!(
+            r#"INSERT INTO project_paths
+                 (project_id, machine_id, path, project_marker_id, created_at, last_seen_at)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(machine_id, path) DO UPDATE SET
+                 project_id = excluded.project_id,
+                 project_marker_id = excluded.project_marker_id,
+                 last_seen_at = excluded.last_seen_at"#,
+            pid,
+            machine_id,
+            p.path,
+            p.project_marker_id,
+            p.added_at,
+            p.last_seen_at,
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(AppError::Db)?;
+        paths_synced += 1;
+    }
+    let _ = paths_synced; // 进 audit metadata 用,见下方 meta JSON
+
     tx.commit().await.map_err(AppError::Db)?;
 
     // 审计(失败不影响响应)。
@@ -189,6 +243,7 @@ pub async fn push(
         "batch_size": req.observations.len(),
         "accepted": accepted,
         "duplicates": duplicates,
+        "paths_synced": req.paths.len(),
     })
     .to_string();
     audit::record(

@@ -131,9 +131,24 @@ pub struct PushObservation {
     pub derivation_chain: Option<serde_json::Value>,
 }
 
+/// fork v12.7.2-plus.1 新增:本机 project_paths 表的一条同步记录
+/// server 端按 (machine_id, path) UPSERT 进自己的 project_paths,
+/// 通过 project_name + marker_id 解析 server-side project_id(UUID)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PushPath {
+    pub project_name: String,
+    pub project_marker_id: Option<String>,
+    pub path: String,
+    pub added_at: i64,        // unix seconds
+    pub last_seen_at: i64,    // unix seconds
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PushRequest {
     pub observations: Vec<PushObservation>,
+    /// fork v12.7.2-plus.1 新增,可选;旧 client 不发该字段也兼容(serde default = empty Vec)
+    #[serde(default)]
+    pub paths: Vec<PushPath>,
 }
 
 /// 客户端提交的项目名 → 服务器分配的 project_id。

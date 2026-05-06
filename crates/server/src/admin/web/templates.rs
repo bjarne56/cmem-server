@@ -164,7 +164,27 @@ pub struct ProjectRow {
     pub created: String,
     pub observation_count: i64,
     pub share_count: i64,
+    pub path_count: i64,
     pub is_excluded: bool,
+}
+
+/// 项目详情页(/admin/projects/:id)— fork v12.7.2-plus.1 同步上来的多机器 paths
+#[derive(Template)]
+#[template(path = "project_detail.html")]
+pub struct ProjectDetailPage<'a> {
+    pub ctx: LangCtx,
+    pub admin_username: &'a str,
+    pub project: ProjectRow,
+    pub paths: Vec<ProjectPathView>,
+}
+
+pub struct ProjectPathView {
+    pub machine_id: String,
+    pub machine_name: String,
+    pub path: String,
+    pub project_marker_id: String,
+    pub created: String,
+    pub last_seen: String,
 }
 
 #[derive(Template)]

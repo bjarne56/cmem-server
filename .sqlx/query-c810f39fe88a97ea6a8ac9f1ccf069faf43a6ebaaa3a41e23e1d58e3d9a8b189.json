@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO project_paths\n                 (project_id, machine_id, path, project_marker_id, created_at, last_seen_at)\n               VALUES (?, ?, ?, ?, ?, ?)\n               ON CONFLICT(machine_id, path) DO UPDATE SET\n                 project_id = excluded.project_id,\n                 project_marker_id = excluded.project_marker_id,\n                 last_seen_at = excluded.last_seen_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "c810f39fe88a97ea6a8ac9f1ccf069faf43a6ebaaa3a41e23e1d58e3d9a8b189"
+}

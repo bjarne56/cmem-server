@@ -28,6 +28,7 @@
         <th class="text-left px-3 py-2">{{ ctx.t("projects.col.owner") }}</th>
         <th class="text-right px-3 py-2">{{ ctx.t("projects.col.obs") }}</th>
         <th class="text-right px-3 py-2">{{ ctx.t("projects.col.shares") }}</th>
+        <th class="text-right px-3 py-2">{{ ctx.t("projects.col.paths") }}</th>
         <th class="text-left px-3 py-2">{{ ctx.t("projects.col.excluded") }}</th>
         <th class="text-left px-3 py-2">{{ ctx.t("projects.col.created") }}</th>
         <th class="text-left px-3 py-2">{{ ctx.t("projects.col.id") }}</th>
@@ -36,18 +37,23 @@
     <tbody class="divide-y">
       {% for r in rows %}
       <tr class="hover:bg-gray-50">
-        <td class="px-3 py-2 font-medium">{{ r.name }}</td>
+        <td class="px-3 py-2 font-medium"><a href="/admin/projects/{{ r.id }}" class="text-indigo-600 hover:underline">{{ r.name }}</a></td>
         <td class="px-3 py-2 text-gray-600">{{ r.display_name }}</td>
         <td class="px-3 py-2"><a href="/admin/observations?user={{ r.username }}" class="text-indigo-600 hover:underline">{{ r.username }}</a></td>
         <td class="px-3 py-2 text-right">{{ r.observation_count }}</td>
         <td class="px-3 py-2 text-right">{{ r.share_count }}</td>
+        <td class="px-3 py-2 text-right">
+          {% if r.path_count > 0 %}
+            <a href="/admin/projects/{{ r.id }}" class="text-indigo-600 hover:underline">{{ r.path_count }}</a>
+          {% else %}<span class="text-gray-400">0</span>{% endif %}
+        </td>
         <td class="px-3 py-2">{% if r.is_excluded %}<span class="text-orange-600">{{ ctx.t("common.yes") }}</span>{% else %}{{ ctx.t("common.no") }}{% endif %}</td>
         <td class="px-3 py-2 text-gray-500 whitespace-nowrap">{{ r.created }}</td>
         <td class="px-3 py-2 font-mono text-xs text-gray-400">{{ r.id }}</td>
       </tr>
       {% endfor %}
       {% if rows.is_empty() %}
-      <tr><td colspan="8" class="text-center text-gray-400 py-6">{{ ctx.t("common.empty.projects") }}</td></tr>
+      <tr><td colspan="9" class="text-center text-gray-400 py-6">{{ ctx.t("common.empty.projects") }}</td></tr>
       {% endif %}
     </tbody>
   </table>

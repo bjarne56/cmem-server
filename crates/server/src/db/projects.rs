@@ -23,6 +23,8 @@ pub struct ProjectPathRow {
     pub machine_name: String,
     pub path: String,
     pub project_marker_id: Option<String>,
+    pub created_at: i64,
+    pub last_seen_at: i64,
 }
 
 /// 在事务里创建项目。
@@ -248,7 +250,7 @@ pub async fn list_by_user(pool: &SqlitePool, user_id: &str) -> Result<Vec<Projec
     Ok(rows)
 }
 
-/// 列出某项目所有 path 别名(联机器名)。
+/// 列出某项目所有 path 别名(联机器名),按 last_seen_at DESC 排。
 pub async fn list_paths(pool: &SqlitePool, project_id: &str) -> Result<Vec<ProjectPathRow>> {
     let rows = sqlx::query_as!(
         ProjectPathRow,
@@ -258,11 +260,13 @@ pub async fn list_paths(pool: &SqlitePool, project_id: &str) -> Result<Vec<Proje
             pp.machine_id        AS "machine_id!: String",
             m.name               AS "machine_name!: String",
             pp.path              AS "path!: String",
-            pp.project_marker_id AS "project_marker_id: String"
+            pp.project_marker_id AS "project_marker_id: String",
+            pp.created_at        AS "created_at!: i64",
+            pp.last_seen_at      AS "last_seen_at!: i64"
         FROM project_paths pp
         JOIN machines m ON m.id = pp.machine_id
         WHERE pp.project_id = ?1
-        ORDER BY pp.created_at ASC
+        ORDER BY pp.last_seen_at DESC, pp.created_at ASC
         "#,
         project_id,
     )
@@ -318,7 +322,7 @@ pub async fn observation_counts_for_user(
     Ok(rows.into_iter().map(|r| (r.project_id, r.count)).collect())
 }
 
-/// admin 全局视角的项目行(带 owner username + obs 数)。
+/// admin 全局视角的项目行(带 owner username + obs 数 + path 数)。
 #[derive(Debug, Clone)]
 pub struct AdminProjectRow {
     pub id: String,
@@ -331,6 +335,8 @@ pub struct AdminProjectRow {
     pub created_at: i64,
     pub observation_count: i64,
     pub share_count: i64,
+    /// fork v12.7.2-plus.1 同步上来的 path 总数(跨所有机器)
+    pub path_count: i64,
 }
 
 /// admin 全局列表 + 模糊搜 name + 过滤 user。
@@ -359,7 +365,8 @@ pub async fn admin_search(
             p.is_excluded  AS "is_excluded!: i64",
             p.created_at   AS "created_at!: i64",
             (SELECT COUNT(*) FROM observations    o WHERE o.project_id = p.id AND o.deleted_at IS NULL) AS "observation_count!: i64",
-            (SELECT COUNT(*) FROM project_shares  s WHERE s.project_id = p.id AND s.revoked_at IS NULL) AS "share_count!: i64"
+            (SELECT COUNT(*) FROM project_shares  s WHERE s.project_id = p.id AND s.revoked_at IS NULL) AS "share_count!: i64",
+            (SELECT COUNT(*) FROM project_paths   pp WHERE pp.project_id = p.id) AS "path_count!: i64"
         FROM projects p
         JOIN users u ON u.id = p.user_id
         WHERE (?1 = 1 OR p.user_id = ?2)
