@@ -20,3 +20,7 @@
 
 # release 打包产物(scripts/pack-release.sh 输出)
 /dist/
+
+# fork 的 folder-claudemd hook 在子目录自动生成 CLAUDE.md(占位 noise)
+**/CLAUDE.md
+!/CLAUDE.md
