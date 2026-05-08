@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n            id                  AS \"id!: String\",\n            user_id             AS \"user_id!: String\",\n            name                AS \"name!: String\",\n            display_name        AS \"display_name: String\",\n            description         AS \"description: String\",\n            is_excluded         AS \"is_excluded!: i64\",\n            forked_from_project AS \"forked_from_project: String\",\n            forked_at           AS \"forked_at: i64\",\n            created_at          AS \"created_at!: i64\"\n        FROM projects\n        WHERE user_id = ?1 AND name = ?2\n        ",
+  "query": "\n        SELECT\n            id                  AS \"id!: String\",\n            user_id             AS \"user_id!: String\",\n            name                AS \"name!: String\",\n            display_name        AS \"display_name: String\",\n            description         AS \"description: String\",\n            is_excluded         AS \"is_excluded!: i64\",\n            forked_from_project AS \"forked_from_project: String\",\n            forked_at           AS \"forked_at: i64\",\n            created_at          AS \"created_at!: i64\",\n            deleted_at          AS \"deleted_at: i64\"\n        FROM projects\n        WHERE user_id = ?1 AND deleted_at IS NULL\n        ORDER BY created_at ASC\n        ",
   "describe": {
     "columns": [
       {
@@ -47,10 +47,15 @@
         "name": "created_at!: i64",
         "ordinal": 8,
         "type_info": "Integer"
+      },
+      {
+        "name": "deleted_at: i64",
+        "ordinal": 9,
+        "type_info": "Integer"
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 1
     },
     "nullable": [
       false,
@@ -61,8 +66,9 @@
       false,
       true,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "10cec3f0b92d214d88ff1ebfba02f04bac2364d56fc97b82247e6a26d06d7ee3"
+  "hash": "0d9ef12e2bae408879db9af8b318880f483b2bfadcf43c7e5cf85d3ce4f435c2"
 }

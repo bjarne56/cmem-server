@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n            id                  AS \"id!: String\",\n            user_id             AS \"user_id!: String\",\n            name                AS \"name!: String\",\n            display_name        AS \"display_name: String\",\n            description         AS \"description: String\",\n            is_excluded         AS \"is_excluded!: i64\",\n            forked_from_project AS \"forked_from_project: String\",\n            forked_at           AS \"forked_at: i64\",\n            created_at          AS \"created_at!: i64\"\n        FROM projects\n        WHERE id = ?1\n        ",
+  "query": "\n        SELECT\n            id                  AS \"id!: String\",\n            user_id             AS \"user_id!: String\",\n            name                AS \"name!: String\",\n            display_name        AS \"display_name: String\",\n            description         AS \"description: String\",\n            is_excluded         AS \"is_excluded!: i64\",\n            forked_from_project AS \"forked_from_project: String\",\n            forked_at           AS \"forked_at: i64\",\n            created_at          AS \"created_at!: i64\",\n            deleted_at          AS \"deleted_at: i64\"\n        FROM projects\n        WHERE id = ?1\n        ",
   "describe": {
     "columns": [
       {
@@ -47,6 +47,11 @@
         "name": "created_at!: i64",
         "ordinal": 8,
         "type_info": "Integer"
+      },
+      {
+        "name": "deleted_at: i64",
+        "ordinal": 9,
+        "type_info": "Integer"
       }
     ],
     "parameters": {
@@ -61,8 +66,9 @@
       false,
       true,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "46550fef2b187708a278c456c930038fe7ecbfdac22a378fa3b5543aa5927f22"
+  "hash": "c25df611230f81d36e53118ace5f6c6764d3d0641ea0af6ca142bb0d20859e93"
 }

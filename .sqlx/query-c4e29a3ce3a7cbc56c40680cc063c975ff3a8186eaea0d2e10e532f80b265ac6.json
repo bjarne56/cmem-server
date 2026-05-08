@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM observations WHERE project_id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "c4e29a3ce3a7cbc56c40680cc063c975ff3a8186eaea0d2e10e532f80b265ac6"
+}

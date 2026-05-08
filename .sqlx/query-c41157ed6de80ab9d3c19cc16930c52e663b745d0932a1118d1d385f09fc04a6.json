@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE observations\n            SET deleted_at = NULL\n            WHERE project_id = ?1 AND user_id = ?2 AND deleted_at IS NOT NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "c41157ed6de80ab9d3c19cc16930c52e663b745d0932a1118d1d385f09fc04a6"
+}

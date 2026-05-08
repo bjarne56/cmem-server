@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE machines\n        SET machine_token_hash = ?2,\n            last_seen_at       = ?3,\n            revoked            = 0\n        WHERE id = ?1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "00cb50ecfa99d4f5e4914857cdd8537fcf72f7ec3fd5d3b5fd9f232f100176f0"
+}

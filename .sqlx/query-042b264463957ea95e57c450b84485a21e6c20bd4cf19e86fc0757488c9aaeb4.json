@@ -1,0 +1,86 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            p.id           AS \"id!: String\",\n            p.user_id      AS \"user_id!: String\",\n            u.username     AS \"username!: String\",\n            p.name         AS \"name!: String\",\n            p.display_name AS \"display_name: String\",\n            p.description  AS \"description: String\",\n            p.is_excluded  AS \"is_excluded!: i64\",\n            p.created_at   AS \"created_at!: i64\",\n            p.deleted_at   AS \"deleted_at: i64\",\n            (SELECT COUNT(*) FROM observations    o WHERE o.project_id = p.id AND o.deleted_at IS NULL) AS \"observation_count!: i64\",\n            (SELECT COUNT(*) FROM project_shares  s WHERE s.project_id = p.id AND s.revoked_at IS NULL) AS \"share_count!: i64\",\n            (SELECT COUNT(*) FROM project_paths   pp WHERE pp.project_id = p.id) AS \"path_count!: i64\"\n        FROM projects p\n        JOIN users u ON u.id = p.user_id\n        WHERE (?1 = 1 OR p.user_id = ?2)\n          AND p.deleted_at IS NULL\n          AND (p.name LIKE ?3 ESCAPE '\\' OR (p.display_name IS NOT NULL AND p.display_name LIKE ?3 ESCAPE '\\'))\n        ORDER BY p.created_at DESC\n        LIMIT ?4 OFFSET ?5\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "user_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "username!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "name!: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_name: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "description: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_excluded!: i64",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "deleted_at: i64",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "observation_count!: i64",
+        "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "share_count!: i64",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "path_count!: i64",
+        "ordinal": 11,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "042b264463957ea95e57c450b84485a21e6c20bd4cf19e86fc0757488c9aaeb4"
+}
