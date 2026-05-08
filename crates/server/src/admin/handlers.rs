@@ -598,6 +598,161 @@ pub async fn list_projects(
     Ok(Json(view))
 }
 
+#[derive(Debug, Serialize)]
+pub struct AdminTrashedProjectView {
+    pub id: String,
+    pub user_id: String,
+    pub username: String,
+    pub name: String,
+    pub display_name: Option<String>,
+    pub created_at: i64,
+    pub deleted_at: Option<i64>,
+    pub observation_count: i64,
+    pub path_count: i64,
+}
+
+pub async fn list_trashed_projects(
+    State(state): State<AppState>,
+    Query(q): Query<ProjectsQuery>,
+) -> Result<Json<Vec<AdminTrashedProjectView>>, AppError> {
+    let limit = q.limit.unwrap_or(100).clamp(1, 500);
+    let offset = q.offset.unwrap_or(0).max(0);
+    let rows = projects::list_trashed_admin(&state.pool, limit, offset)
+        .await
+        .map_err(AppError::Internal)?;
+    let view = rows
+        .into_iter()
+        .map(|r| AdminTrashedProjectView {
+            id: r.id,
+            user_id: r.user_id,
+            username: r.username,
+            name: r.name,
+            display_name: r.display_name,
+            created_at: r.created_at,
+            deleted_at: r.deleted_at,
+            observation_count: r.observation_count,
+            path_count: r.path_count,
+        })
+        .collect();
+    Ok(Json(view))
+}
+
+pub async fn delete_project(
+    State(state): State<AppState>,
+    Extension(admin): Extension<AdminPrincipal>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, AppError> {
+    // 软删:project SET deleted_at = now,同时其下 observations 也软删。
+    // 需要先 find_any_by_id 拿到 owner user_id (admin 可删任意用户的项目)
+    let project = projects::find_any_by_id(&state.pool, &id)
+        .await
+        .map_err(AppError::Internal)?;
+    let project = match project {
+        Some(p) => p,
+        None => return Err(AppError::NotFound),
+    };
+    if project.deleted_at.is_some() {
+        // 已经在回收站,幂等返回 204
+        return Ok(StatusCode::NO_CONTENT);
+    }
+    let now = Utc::now().timestamp();
+    let removed = projects::delete(&state.pool, &project.user_id, &id, now)
+        .await
+        .map_err(AppError::Internal)?;
+    if !removed {
+        return Err(AppError::NotFound);
+    }
+    audit::record(
+        &state.pool,
+        Some(&admin.user_id),
+        Some(&project.user_id),
+        "admin.project_soft_delete",
+        Some("project"),
+        Some(&id),
+        None,
+        None,
+        None,
+        now,
+    )
+    .await
+    .map_err(AppError::Internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn hard_delete_project(
+    State(state): State<AppState>,
+    Extension(admin): Extension<AdminPrincipal>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, AppError> {
+    // 彻底删:从 projects 物理删除,级联清掉 obs/paths/shares 等。
+    // 通常从回收站页面"彻底删除"按钮触发(项目已是软删状态)。
+    let project = projects::find_any_by_id(&state.pool, &id)
+        .await
+        .map_err(AppError::Internal)?;
+    let project = match project {
+        Some(p) => p,
+        None => return Err(AppError::NotFound),
+    };
+    let removed = projects::hard_delete(&state.pool, &id)
+        .await
+        .map_err(AppError::Internal)?;
+    if !removed {
+        return Err(AppError::NotFound);
+    }
+    let now = Utc::now().timestamp();
+    audit::record(
+        &state.pool,
+        Some(&admin.user_id),
+        Some(&project.user_id),
+        "admin.project_hard_delete",
+        Some("project"),
+        Some(&id),
+        Some(&format!("{{\"name\":\"{}\"}}", project.name.replace('"', "\\\""))),
+        None,
+        None,
+        now,
+    )
+    .await
+    .map_err(AppError::Internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn restore_project(
+    State(state): State<AppState>,
+    Extension(admin): Extension<AdminPrincipal>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, AppError> {
+    let project = projects::find_any_by_id(&state.pool, &id)
+        .await
+        .map_err(AppError::Internal)?;
+    let project = match project {
+        Some(p) => p,
+        None => return Err(AppError::NotFound),
+    };
+    let restored = projects::restore(&state.pool, &project.user_id, &id)
+        .await
+        .map_err(AppError::Internal)?;
+    if !restored {
+        return Err(AppError::NotFound);
+    }
+    let now = Utc::now().timestamp();
+    audit::record(
+        &state.pool,
+        Some(&admin.user_id),
+        Some(&project.user_id),
+        "admin.project_restore",
+        Some("project"),
+        Some(&id),
+        None,
+        None,
+        None,
+        now,
+    )
+    .await
+    .map_err(AppError::Internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 // ---------- /api/admin/observations ----------
 
 #[derive(Debug, Deserialize)]

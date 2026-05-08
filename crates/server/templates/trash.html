@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}回收站 - cmem-server admin{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold">回收站</h1>
+    <p class="text-sm text-gray-500 mt-1">已软删的项目。点击"恢复"撤销删除,项目下的 observations 会一起恢复。</p>
+  </div>
+  <a href="/admin/projects" class="text-sm text-blue-600 hover:underline">← 项目列表</a>
+</div>
+
+{% if rows.is_empty() %}
+<div class="bg-white rounded shadow p-8 text-center text-gray-500">
+  回收站为空
+</div>
+{% else %}
+<div class="bg-white rounded shadow overflow-hidden">
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">名称</th>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">所有者</th>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">观察</th>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">删除时间</th>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
+        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200" id="trash-tbody">
+      {% for r in rows %}
+      <tr id="row-{{ r.id }}">
+        <td class="px-4 py-3 text-sm">
+          <div class="font-medium">{{ r.name }}</div>
+          {% if !r.display_name.is_empty() %}
+            <div class="text-xs text-gray-500">{{ r.display_name }}</div>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 text-sm">{{ r.username }}</td>
+        <td class="px-4 py-3 text-sm">{{ r.observation_count }}</td>
+        <td class="px-4 py-3 text-sm text-gray-500">{{ r.deleted }}</td>
+        <td class="px-4 py-3 text-sm text-gray-500">{{ r.created }}</td>
+        <td class="px-4 py-3 text-sm text-right space-x-2 whitespace-nowrap">
+          <button
+            class="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
+            hx-post="/api/admin/projects/{{ r.id }}/restore"
+            hx-target="#row-{{ r.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="确定恢复项目 '{{ r.name }}'?(项目下的 observations 也会一起恢复)">
+            恢复
+          </button>
+          <button
+            class="px-3 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
+            hx-delete="/api/admin/projects/{{ r.id }}/permanent"
+            hx-target="#row-{{ r.id }}"
+            hx-swap="outerHTML"
+            hx-confirm="⚠️ 彻底删除项目 '{{ r.name }}' 及其所有 observations?此操作不可恢复!">
+            彻底删除
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

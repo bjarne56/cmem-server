@@ -43,6 +43,10 @@ pub struct SettingsPage<'a> {
     pub admin_username: &'a str,
     /// 当前注册模式:"open" / "invite_only" / "closed"
     pub registration_mode: &'static str,
+    /// 显示时区偏移(分钟,如 +8 = 480)
+    pub display_offset_minutes: i32,
+    /// 时区下拉选项:对齐 31 种支持语言的主流国家 + UTC = 32 个。
+    pub timezones: &'static [(i32, &'static str)],
     /// 保存成功 flash(true 时模板顶部显示绿色 banner)
     pub saved: bool,
 }
@@ -166,6 +170,25 @@ pub struct ProjectRow {
     pub share_count: i64,
     pub path_count: i64,
     pub is_excluded: bool,
+}
+
+/// 回收站 — 已软删项目列表(/admin/projects/trash)
+#[derive(Template)]
+#[template(path = "trash.html")]
+pub struct TrashPage<'a> {
+    pub ctx: LangCtx,
+    pub admin_username: &'a str,
+    pub rows: Vec<TrashedProjectRow>,
+}
+
+pub struct TrashedProjectRow {
+    pub id: String,
+    pub name: String,
+    pub display_name: String,
+    pub username: String,
+    pub created: String,
+    pub deleted: String,
+    pub observation_count: i64,
 }
 
 /// 项目详情页(/admin/projects/:id)— fork v12.7.2-plus.1 同步上来的多机器 paths

@@ -7,8 +7,18 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
     Extension, Form,
 };
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use serde::Deserialize;
+use std::sync::atomic::{AtomicI32, Ordering};
+
+/// 显示时区偏移(分钟)。e.g. +8 = 480, -5 = -300。0 = UTC。
+/// 启动时从 db 读初值,settings 改时刷新。fmt_ts 用它把 UTC 转目标时区。
+static DISPLAY_OFFSET_MINUTES: AtomicI32 = AtomicI32::new(0);
+
+/// 服务启动时从 db 读取并初始化显示时区偏移。
+pub fn init_display_offset(minutes: i32) {
+    DISPLAY_OFFSET_MINUTES.store(minutes, Ordering::Relaxed);
+}
 
 use crate::{
     admin::middleware::{AdminPrincipal, ADMIN_COOKIE_NAME},
@@ -31,11 +41,25 @@ fn render<T: Template>(tmpl: &T) -> Result<Response, AppError> {
 }
 
 fn fmt_ts(ts: i64) -> String {
-    let dt: DateTime<Utc> = Utc
-        .timestamp_opt(ts, 0)
+    // 智能识别 ms / s:>= 1e12 的当作 ms(>= 2001 年的合理 ms 值);
+    // 否则当 s。observations.timestamp 是 client 端 unix_ms,
+    // user.created_at 等是 unix_s,这样两类时间戳都能正确渲染。
+    let (secs, nsecs) = if ts >= 1_000_000_000_000 {
+        (ts / 1000, ((ts % 1000) * 1_000_000) as u32)
+    } else {
+        (ts, 0)
+    };
+    let dt_utc: DateTime<Utc> = Utc
+        .timestamp_opt(secs, nsecs)
         .single()
         .unwrap_or_else(|| Utc.timestamp_opt(0, 0).single().unwrap_or_default());
-    dt.format("%Y-%m-%d %H:%M:%S UTC").to_string()
+    // 应用显示时区偏移(分钟,服务器设置可改;0 = UTC)。
+    let off_min = DISPLAY_OFFSET_MINUTES.load(Ordering::Relaxed);
+    if off_min == 0 {
+        return dt_utc.format("%Y-%m-%d %H:%M:%S UTC").to_string();
+    }
+    let off = FixedOffset::east_opt(off_min * 60).unwrap_or_else(|| FixedOffset::east_opt(0).unwrap());
+    dt_utc.with_timezone(&off).format("%Y-%m-%d %H:%M:%S %:z").to_string()
 }
 
 fn fmt_opt_ts(ts: Option<i64>) -> String {
@@ -141,6 +165,8 @@ pub async fn do_login(
 pub struct SettingsForm {
     /// "open" | "invite_only" | "closed"
     pub registration_mode: String,
+    /// 显示时区偏移(分钟,如 +8 = 480)。可选,未提交则不改。
+    pub display_offset_minutes: Option<i32>,
 }
 
 pub async fn settings_page(
@@ -154,10 +180,15 @@ pub async fn settings_page(
     )
     .await
     .map_err(AppError::Internal)?;
+    let off = crate::db::settings::get_display_offset_minutes(&state.pool)
+        .await
+        .map_err(AppError::Internal)?;
     render(&t::SettingsPage {
         ctx,
         admin_username: &principal.username,
         registration_mode: mode.as_str(),
+        display_offset_minutes: off,
+        timezones: i18n::LANG_TIMEZONES,
         saved: false,
     })
 }
@@ -175,15 +206,34 @@ pub async fn settings_save(
         .await
         .map_err(AppError::Internal)?;
 
+    // 保存显示时区偏移(可选字段);更新内存原子让 fmt_ts 立即生效。
+    let mut off_after = crate::db::settings::get_display_offset_minutes(&state.pool)
+        .await
+        .map_err(AppError::Internal)?;
+    if let Some(off) = form.display_offset_minutes {
+        // 合理性:[-24*60, +24*60] 即 ±24h,够覆盖所有现实时区
+        if !(-1440..=1440).contains(&off) {
+            return Err(AppError::Validation(format!("invalid display_offset_minutes: {off}")));
+        }
+        crate::db::settings::set_display_offset_minutes(&state.pool, off, Some(&principal.user_id))
+            .await
+            .map_err(AppError::Internal)?;
+        DISPLAY_OFFSET_MINUTES.store(off, Ordering::Relaxed);
+        off_after = off;
+    }
+
     let now = Utc::now().timestamp();
     audit::record(
         &state.pool,
         Some(&principal.user_id),
         None,
-        "admin.settings.registration_mode",
+        "admin.settings.update",
         Some("setting"),
-        Some("registration_mode"),
-        Some(&format!("{{\"value\":\"{}\"}}", new_mode.as_str())),
+        Some("server_settings"),
+        Some(&format!(
+            "{{\"registration_mode\":\"{}\",\"display_offset_minutes\":{}}}",
+            new_mode.as_str(), off_after
+        )),
         None,
         None,
         now,
@@ -195,6 +245,8 @@ pub async fn settings_save(
         ctx,
         admin_username: &principal.username,
         registration_mode: new_mode.as_str(),
+        display_offset_minutes: off_after,
+        timezones: i18n::LANG_TIMEZONES,
         saved: true,
     })
 }
@@ -780,6 +832,35 @@ pub async fn projects_page(
         admin_username: &admin.username,
         query,
         user_filter,
+        rows: view,
+    })
+}
+
+// ---------- /admin/projects/trash  回收站(软删项目) ----------
+
+pub async fn trash_page(
+    State(state): State<AppState>,
+    Extension(admin): Extension<AdminPrincipal>,
+    ctx: LangCtx,
+) -> Result<Response, AppError> {
+    let rows = projects::list_trashed_admin(&state.pool, 200, 0)
+        .await
+        .map_err(AppError::Internal)?;
+    let view: Vec<t::TrashedProjectRow> = rows
+        .into_iter()
+        .map(|r| t::TrashedProjectRow {
+            id: r.id,
+            name: r.name,
+            display_name: r.display_name.unwrap_or_default(),
+            username: r.username,
+            created: fmt_ts(r.created_at),
+            deleted: r.deleted_at.map(fmt_ts).unwrap_or_default(),
+            observation_count: r.observation_count,
+        })
+        .collect();
+    render(&t::TrashPage {
+        ctx,
+        admin_username: &admin.username,
         rows: view,
     })
 }

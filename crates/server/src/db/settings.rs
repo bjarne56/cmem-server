@@ -43,6 +43,42 @@ impl RegistrationMode {
 }
 
 const KEY_REGISTRATION_MODE: &str = "registration_mode";
+const KEY_DISPLAY_OFFSET_MINUTES: &str = "display_offset_minutes";
+
+/// 读取显示时区偏移(分钟,如 +8 = 480)。db 没记录时返回 0(UTC)。
+pub async fn get_display_offset_minutes(pool: &SqlitePool) -> Result<i32> {
+    let row: Option<(String,)> = sqlx::query_as(
+        "SELECT value FROM server_settings WHERE key = ?",
+    )
+    .bind(KEY_DISPLAY_OFFSET_MINUTES)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.and_then(|(v,)| v.parse::<i32>().ok()).unwrap_or(0))
+}
+
+/// 写显示时区偏移(分钟)。
+pub async fn set_display_offset_minutes(
+    pool: &SqlitePool,
+    offset: i32,
+    updated_by: Option<&str>,
+) -> Result<()> {
+    let now = Utc::now().timestamp();
+    sqlx::query(
+        "INSERT INTO server_settings (key, value, updated_at, updated_by)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET
+           value = excluded.value,
+           updated_at = excluded.updated_at,
+           updated_by = excluded.updated_by",
+    )
+    .bind(KEY_DISPLAY_OFFSET_MINUTES)
+    .bind(offset.to_string())
+    .bind(now)
+    .bind(updated_by)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
 
 /// 读取注册模式;db 没有该 key 时按 config 的 require_invite 推算并 lazy 写入。
 pub async fn get_registration_mode(pool: &SqlitePool, fallback_require_invite: bool) -> Result<RegistrationMode> {

@@ -23,6 +23,11 @@ pub async fn run(config_path: Option<&Path>) -> Result<()> {
         .with_context(|| format!("open db at {}", cfg.database.path.display()))?;
     db::migrate(&pool).await.context("apply migrations")?;
 
+    // 启动时从 db 读显示时区偏移,写入全局 atomic 给 admin web 的 fmt_ts 用。
+    if let Ok(off) = crate::db::settings::get_display_offset_minutes(&pool).await {
+        crate::admin::web::handlers::init_display_offset(off);
+    }
+
     let jwt = JwtCodec::new(&cfg.auth.jwt_secret).context("init jwt codec")?;
 
     let state = AppState {

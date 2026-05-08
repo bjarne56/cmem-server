@@ -45,6 +45,19 @@
         </div>
       </label>
 
+      <div class="border-t pt-3 mt-3">
+        <div class="font-medium text-sm mb-1">显示时区</div>
+        <div class="text-xs text-gray-500 mb-2">
+          时间戳在 admin 后台所有页面的显示时区偏移(分钟)。例:中国 = 480 (UTC+8),美西 = -480。0 = UTC。
+        </div>
+        <select name="display_offset_minutes" class="border border-gray-300 rounded px-2 py-1 text-sm w-full max-w-md">
+          {% for tz in timezones %}
+            <option value="{{ tz.0 }}" {% if display_offset_minutes == tz.0 %}selected{% endif %}>{{ tz.1 }}</option>
+          {% endfor %}
+        </select>
+        <div class="text-xs text-gray-400 mt-1">当前值:{{ display_offset_minutes }} 分钟</div>
+      </div>
+
       <button class="bg-indigo-600 text-white rounded px-4 py-1.5 hover:bg-indigo-700 text-sm">
         {{ ctx.t("settings.save") }}
       </button>

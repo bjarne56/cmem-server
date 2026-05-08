@@ -14,6 +14,8 @@ pub struct ProjectRow {
     pub forked_from_project: Option<String>,
     pub forked_at: Option<i64>,
     pub created_at: i64,
+    /// 软删时间戳(unix sec)。NULL = 正常项目。回收站页面查 IS NOT NULL。
+    pub deleted_at: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -97,7 +99,8 @@ pub async fn find_by_id_in_tx<'c>(
             is_excluded         AS "is_excluded!: i64",
             forked_from_project AS "forked_from_project: String",
             forked_at           AS "forked_at: i64",
-            created_at          AS "created_at!: i64"
+            created_at          AS "created_at!: i64",
+            deleted_at          AS "deleted_at: i64"
         FROM projects
         WHERE user_id = ?1 AND id = ?2
         "#,
@@ -127,7 +130,8 @@ pub async fn find_by_name_in_tx<'c>(
             is_excluded         AS "is_excluded!: i64",
             forked_from_project AS "forked_from_project: String",
             forked_at           AS "forked_at: i64",
-            created_at          AS "created_at!: i64"
+            created_at          AS "created_at!: i64",
+            deleted_at          AS "deleted_at: i64"
         FROM projects
         WHERE user_id = ?1 AND name = ?2
         "#,
@@ -157,9 +161,10 @@ pub async fn find_by_id(
             is_excluded         AS "is_excluded!: i64",
             forked_from_project AS "forked_from_project: String",
             forked_at           AS "forked_at: i64",
-            created_at          AS "created_at!: i64"
+            created_at          AS "created_at!: i64",
+            deleted_at          AS "deleted_at: i64"
         FROM projects
-        WHERE user_id = ?1 AND id = ?2
+        WHERE user_id = ?1 AND id = ?2 AND deleted_at IS NULL
         "#,
         user_id,
         id,
@@ -183,7 +188,8 @@ pub async fn find_any_by_id(pool: &SqlitePool, id: &str) -> Result<Option<Projec
             is_excluded         AS "is_excluded!: i64",
             forked_from_project AS "forked_from_project: String",
             forked_at           AS "forked_at: i64",
-            created_at          AS "created_at!: i64"
+            created_at          AS "created_at!: i64",
+            deleted_at          AS "deleted_at: i64"
         FROM projects
         WHERE id = ?1
         "#,
@@ -212,9 +218,10 @@ pub async fn find_by_name(
             is_excluded         AS "is_excluded!: i64",
             forked_from_project AS "forked_from_project: String",
             forked_at           AS "forked_at: i64",
-            created_at          AS "created_at!: i64"
+            created_at          AS "created_at!: i64",
+            deleted_at          AS "deleted_at: i64"
         FROM projects
-        WHERE user_id = ?1 AND name = ?2
+        WHERE user_id = ?1 AND name = ?2 AND deleted_at IS NULL
         "#,
         user_id,
         name,
@@ -238,9 +245,10 @@ pub async fn list_by_user(pool: &SqlitePool, user_id: &str) -> Result<Vec<Projec
             is_excluded         AS "is_excluded!: i64",
             forked_from_project AS "forked_from_project: String",
             forked_at           AS "forked_at: i64",
-            created_at          AS "created_at!: i64"
+            created_at          AS "created_at!: i64",
+            deleted_at          AS "deleted_at: i64"
         FROM projects
-        WHERE user_id = ?1
+        WHERE user_id = ?1 AND deleted_at IS NULL
         ORDER BY created_at ASC
         "#,
         user_id,
@@ -333,6 +341,7 @@ pub struct AdminProjectRow {
     pub description: Option<String>,
     pub is_excluded: i64,
     pub created_at: i64,
+    pub deleted_at: Option<i64>,
     pub observation_count: i64,
     pub share_count: i64,
     /// fork v12.7.2-plus.1 同步上来的 path 总数(跨所有机器)
@@ -364,12 +373,14 @@ pub async fn admin_search(
             p.description  AS "description: String",
             p.is_excluded  AS "is_excluded!: i64",
             p.created_at   AS "created_at!: i64",
+            p.deleted_at   AS "deleted_at: i64",
             (SELECT COUNT(*) FROM observations    o WHERE o.project_id = p.id AND o.deleted_at IS NULL) AS "observation_count!: i64",
             (SELECT COUNT(*) FROM project_shares  s WHERE s.project_id = p.id AND s.revoked_at IS NULL) AS "share_count!: i64",
             (SELECT COUNT(*) FROM project_paths   pp WHERE pp.project_id = p.id) AS "path_count!: i64"
         FROM projects p
         JOIN users u ON u.id = p.user_id
         WHERE (?1 = 1 OR p.user_id = ?2)
+          AND p.deleted_at IS NULL
           AND (p.name LIKE ?3 ESCAPE '\' OR (p.display_name IS NOT NULL AND p.display_name LIKE ?3 ESCAPE '\'))
         ORDER BY p.created_at DESC
         LIMIT ?4 OFFSET ?5
@@ -504,6 +515,9 @@ pub async fn create_fork_in_tx<'c>(
 /// 2. 再硬删 project 行(level paths / shares 走 FK CASCADE)
 ///
 /// 软删 observation 的好处:server_seq 仍单调,客户端按 cursor pull 不会拿到“已不存在的项目”。
+///
+/// 软删 project 本身(不再硬删):SET deleted_at = now。这样回收站可显示已删项目,
+/// 用户可通过 restore() 恢复。彻底删除走单独的 hard_delete()(待实现)。
 pub async fn delete(pool: &SqlitePool, user_id: &str, id: &str, now: i64) -> Result<bool> {
     let mut tx = pool.begin().await?;
     sqlx::query!(
@@ -520,12 +534,100 @@ pub async fn delete(pool: &SqlitePool, user_id: &str, id: &str, now: i64) -> Res
     .await?;
 
     let res = sqlx::query!(
-        r#"DELETE FROM projects WHERE user_id = ?1 AND id = ?2"#,
+        r#"
+        UPDATE projects
+        SET deleted_at = ?3
+        WHERE user_id = ?1 AND id = ?2 AND deleted_at IS NULL
+        "#,
         user_id,
         id,
+        now,
     )
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;
     Ok(res.rows_affected() > 0)
+}
+
+/// 恢复软删的项目:project 的 deleted_at 清空 + 同步恢复其下所有 observations。
+/// 与 delete() 对称,用于回收站"恢复"按钮。
+pub async fn restore(pool: &SqlitePool, user_id: &str, id: &str) -> Result<bool> {
+    let mut tx = pool.begin().await?;
+    let res = sqlx::query!(
+        r#"
+        UPDATE projects
+        SET deleted_at = NULL
+        WHERE user_id = ?1 AND id = ?2 AND deleted_at IS NOT NULL
+        "#,
+        user_id,
+        id,
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    if res.rows_affected() > 0 {
+        sqlx::query!(
+            r#"
+            UPDATE observations
+            SET deleted_at = NULL
+            WHERE project_id = ?1 AND user_id = ?2 AND deleted_at IS NOT NULL
+            "#,
+            id,
+            user_id,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+    Ok(res.rows_affected() > 0)
+}
+
+/// 彻底删除项目(物理删 projects + 级联删 obs/paths/shares 等)。
+/// 与 delete()(软删进回收站) 区分,这是"回收站永久删除"按钮用的不可逆操作。
+pub async fn hard_delete(pool: &SqlitePool, id: &str) -> Result<bool> {
+    let mut tx = pool.begin().await?;
+    // 先硬删该项目下所有 observations(级联清干净,不留孤儿)
+    sqlx::query!("DELETE FROM observations WHERE project_id = ?1", id)
+        .execute(&mut *tx).await?;
+    // project_paths / project_shares 通过 ON DELETE CASCADE 自动清掉
+    let res = sqlx::query!("DELETE FROM projects WHERE id = ?1", id)
+        .execute(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(res.rows_affected() > 0)
+}
+
+/// 管理后台:列出所有已软删的项目(admin trash 页面用)。
+pub async fn list_trashed_admin(
+    pool: &SqlitePool,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<AdminProjectRow>> {
+    let rows = sqlx::query_as!(
+        AdminProjectRow,
+        r#"
+        SELECT
+            p.id           AS "id!: String",
+            p.user_id      AS "user_id!: String",
+            u.username     AS "username!: String",
+            p.name         AS "name!: String",
+            p.display_name AS "display_name: String",
+            p.description  AS "description: String",
+            p.is_excluded  AS "is_excluded!: i64",
+            p.created_at   AS "created_at!: i64",
+            p.deleted_at   AS "deleted_at: i64",
+            (SELECT COUNT(*) FROM observations    o WHERE o.project_id = p.id) AS "observation_count!: i64",
+            (SELECT COUNT(*) FROM project_shares  s WHERE s.project_id = p.id AND s.revoked_at IS NULL) AS "share_count!: i64",
+            (SELECT COUNT(*) FROM project_paths   pp WHERE pp.project_id = p.id) AS "path_count!: i64"
+        FROM projects p
+        JOIN users u ON u.id = p.user_id
+        WHERE p.deleted_at IS NOT NULL
+        ORDER BY p.deleted_at DESC
+        LIMIT ?1 OFFSET ?2
+        "#,
+        limit, offset,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
 }

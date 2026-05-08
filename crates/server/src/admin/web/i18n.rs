@@ -54,6 +54,44 @@ pub const NATIVE_NAMES: &[(&str, &str)] = &[
     ("no", "Norsk"),
 ];
 
+/// 时区下拉选项:对齐 31 种支持语言的主流国家 + UTC = 32 个。
+/// (offset_minutes, label) — label 给 admin 后台时区下拉显示。
+/// offset 选每种语言主流使用国家的标准时区(不考虑夏令时,FixedOffset 简化)。
+pub const LANG_TIMEZONES: &[(i32, &str)] = &[
+    (0,    "UTC (+00:00)"),
+    (480,  "中国/新加坡 — 中文 (UTC+08:00)"),
+    (480,  "繁體中文 — 台灣/香港 (UTC+08:00)"),
+    (540,  "日本語 — 日本 (UTC+09:00)"),
+    (540,  "한국어 — 대한민국 (UTC+09:00)"),
+    (60,   "Español — España (UTC+01:00)"),
+    (-180, "Português — Brasil (UTC-03:00)"),
+    (60,   "Français — France (UTC+01:00)"),
+    (60,   "Deutsch — Deutschland (UTC+01:00)"),
+    (180,  "Русский — Москва (UTC+03:00)"),
+    (180,  "العربية — السعودية (UTC+03:00)"),
+    (120,  "עברית — ישראל (UTC+02:00)"),
+    (60,   "Polski — Polska (UTC+01:00)"),
+    (60,   "Čeština — Česko (UTC+01:00)"),
+    (60,   "Nederlands — Nederland (UTC+01:00)"),
+    (180,  "Türkçe — Türkiye (UTC+03:00)"),
+    (120,  "Українська — Україна (UTC+02:00)"),
+    (420,  "Tiếng Việt — Việt Nam (UTC+07:00)"),
+    (420,  "Bahasa Indonesia — Jakarta (UTC+07:00)"),
+    (420,  "ไทย — ประเทศไทย (UTC+07:00)"),
+    (330,  "हिन्दी — भारत (UTC+05:30)"),
+    (360,  "বাংলা — বাংলাদেশ (UTC+06:00)"),
+    (120,  "Română — România (UTC+02:00)"),
+    (60,   "Svenska — Sverige (UTC+01:00)"),
+    (300,  "اردو — پاکستان (UTC+05:00)"),
+    (60,   "Italiano — Italia (UTC+01:00)"),
+    (120,  "Ελληνικά — Ελλάδα (UTC+02:00)"),
+    (60,   "Magyar — Magyarország (UTC+01:00)"),
+    (120,  "Suomi — Suomi (UTC+02:00)"),
+    (60,   "Dansk — Danmark (UTC+01:00)"),
+    (60,   "Norsk — Norge (UTC+01:00)"),
+    (0,    "English — United Kingdom (UTC+00:00)"),
+];
+
 /// 是否右到左书写。
 pub fn is_rtl(lang: &str) -> bool {
     matches!(lang, "ar" | "he" | "ur")

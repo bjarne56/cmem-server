@@ -113,6 +113,19 @@ pub fn build_router(state: AppState) -> Router {
         )
         .route("/invites/:code", delete(admin_api::revoke_invite))
         .route("/projects", get(admin_api::list_projects))
+        .route(
+            "/projects/:id",
+            delete(admin_api::delete_project),
+        )
+        .route(
+            "/projects/:id/restore",
+            post(admin_api::restore_project),
+        )
+        .route(
+            "/projects/:id/permanent",
+            delete(admin_api::hard_delete_project),
+        )
+        .route("/projects/trashed", get(admin_api::list_trashed_projects))
         .route("/observations", get(admin_api::list_observations))
         .route(
             "/observations/:id",
@@ -140,6 +153,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/users/:id", get(admin_web::user_detail_page))
         .route("/invites", get(admin_web::invites_page).post(admin_web::invites_create_form))
         .route("/projects", get(admin_web::projects_page))
+        .route("/projects/trash", get(admin_web::trash_page))
         .route("/projects/:id", get(admin_web::project_detail_page))
         .route("/observations", get(admin_web::observations_page))
         .route("/shares", get(admin_web::shares_page).post(admin_web::shares_create_form))
