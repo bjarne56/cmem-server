@@ -42,6 +42,32 @@ pub enum AdminOp {
         #[arg(long, default_value_t = 50)]
         limit: i64,
     },
+    /// 清空业务数据(保留 users / invite_codes / server_settings)。
+    /// 清掉:projects / observations / session_summaries / project_paths /
+    /// project_shares / machines / audit_log。需要 --yes 显式确认。
+    WipeData {
+        /// 必传,显式确认要清空(防止误执行)。
+        #[arg(long)]
+        yes: bool,
+    },
+    /// 一键恢复所有软删的项目 + observations(批量 undo trash)。
+    /// 用于 client 误删导致 server 大量 obs 进 trash 的场景。
+    RestoreAllTrashed {
+        /// 必传,确认要批量恢复(虽然不是破坏性,但仍建议显式)。
+        #[arg(long)]
+        yes: bool,
+    },
+    /// 把 from-user 名下的所有 obs/projects/machines 转移到 to-user 名下。
+    /// 用于 client 切换 user 后,把同台 mac 之前推到 admin 名下的数据迁到 bjarne。
+    /// 不动 obs.id (uuid_v7) — 仅改 user_id。
+    ReassignUser {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -141,7 +167,97 @@ pub async fn dispatch(pool: &SqlitePool, cfg: &AppConfig, op: AdminOp) -> Result
         AdminOp::Invite { op } => invite_dispatch(pool, op).await,
         AdminOp::Stats => stats_cmd(pool).await,
         AdminOp::Audit { user, limit } => audit_cmd(pool, user.as_deref(), limit).await,
+        AdminOp::WipeData { yes } => wipe_data_cmd(pool, yes).await,
+        AdminOp::RestoreAllTrashed { yes } => restore_all_trashed_cmd(pool, yes).await,
+        AdminOp::ReassignUser { from, to, yes } => reassign_user_cmd(pool, &from, &to, yes).await,
     }
+}
+
+async fn reassign_user_cmd(pool: &SqlitePool, from: &str, to: &str, yes: bool) -> Result<()> {
+    if !yes {
+        anyhow::bail!("拒绝执行:请加 --yes 显式确认。");
+    }
+    // 解析 username → id
+    let from_user = users::find_by_username(pool, from).await?
+        .ok_or_else(|| anyhow::anyhow!("from-user '{from}' 不存在"))?;
+    let to_user = users::find_by_username(pool, to).await?
+        .ok_or_else(|| anyhow::anyhow!("to-user '{to}' 不存在"))?;
+
+    let mut tx = pool.begin().await?;
+    // 1. 删 to_user 名下所有 obs(uuid 在 from_user 的也存在,reassign 后 from 的会顶上来)
+    let d_obs = sqlx::query("DELETE FROM observations WHERE user_id = ?1")
+        .bind(&to_user.id).execute(&mut *tx).await?;
+    // 2. 删 to_user 名下所有 projects(uname 跟 from 重复会冲突,空着也无损)
+    let d_proj = sqlx::query("DELETE FROM projects WHERE user_id = ?1")
+        .bind(&to_user.id).execute(&mut *tx).await?;
+    // 3. 删 to_user 名下所有 machines(同 (user_id, name) UNIQUE 会冲突)
+    let d_mach = sqlx::query("DELETE FROM machines WHERE user_id = ?1")
+        .bind(&to_user.id).execute(&mut *tx).await?;
+    eprintln!("  cleared to-user '{to}': {} obs, {} projects, {} machines",
+        d_obs.rows_affected(), d_proj.rows_affected(), d_mach.rows_affected());
+
+    // 4. reassign from_user → to_user
+    let r1 = sqlx::query("UPDATE observations SET user_id = ?2 WHERE user_id = ?1")
+        .bind(&from_user.id).bind(&to_user.id).execute(&mut *tx).await?;
+    let r2 = sqlx::query("UPDATE projects SET user_id = ?2 WHERE user_id = ?1")
+        .bind(&from_user.id).bind(&to_user.id).execute(&mut *tx).await?;
+    let r3 = sqlx::query("UPDATE machines SET user_id = ?2 WHERE user_id = ?1")
+        .bind(&from_user.id).bind(&to_user.id).execute(&mut *tx).await?;
+    tx.commit().await?;
+    eprintln!("✓ reassigned {from} → {to}: {} obs, {} projects, {} machines",
+        r1.rows_affected(), r2.rows_affected(), r3.rows_affected());
+    Ok(())
+}
+
+/// 批量恢复所有软删的项目 + obs:UPDATE deleted_at = NULL。
+/// 用于 client 删项目联动误触发后批量 undo。
+async fn restore_all_trashed_cmd(pool: &SqlitePool, yes: bool) -> Result<()> {
+    if !yes {
+        anyhow::bail!("拒绝执行:请加 --yes 显式确认。");
+    }
+    let mut tx = pool.begin().await?;
+    let r1 = sqlx::query("UPDATE projects SET deleted_at = NULL WHERE deleted_at IS NOT NULL")
+        .execute(&mut *tx).await?;
+    let r2 = sqlx::query("UPDATE observations SET deleted_at = NULL WHERE deleted_at IS NOT NULL")
+        .execute(&mut *tx).await?;
+    tx.commit().await?;
+    eprintln!("✓ 恢复 {} 个项目, {} 条 observations", r1.rows_affected(), r2.rows_affected());
+    Ok(())
+}
+
+/// 清空业务数据。保留的表:users / invite_codes / server_settings / _sqlx_migrations。
+/// 清空的表:projects / observations / session_summaries / project_paths / project_shares /
+/// machines / audit_log。一个事务内全部 DELETE,VACUUM 缩文件。
+async fn wipe_data_cmd(pool: &SqlitePool, yes: bool) -> Result<()> {
+    if !yes {
+        anyhow::bail!("拒绝执行:此操作不可恢复。请加 --yes 显式确认。");
+    }
+    let tables = [
+        "share_mode_downgrades",
+        "project_shares",
+        "observations",
+        "project_paths",
+        "projects",
+        "refresh_tokens",
+        "machines",
+        "audit_log",
+    ];
+    let mut tx = pool.begin().await?;
+    for tbl in &tables {
+        let sql = format!("DELETE FROM {}", tbl);
+        let res = sqlx::query(&sql).execute(&mut *tx).await
+            .with_context(|| format!("DELETE FROM {} failed", tbl))?;
+        eprintln!("  cleared {}: {} rows", tbl, res.rows_affected());
+    }
+    // server_seq_counter 是单行 (id=1) 表,清空后启动会读不到值。
+    // UPSERT 重置 value=0 比 DELETE 更安全。
+    let res = sqlx::query("INSERT INTO server_seq_counter (id, value) VALUES (1, 0) ON CONFLICT(id) DO UPDATE SET value = 0")
+        .execute(&mut *tx).await.context("reset server_seq_counter")?;
+    eprintln!("  reset server_seq_counter: {} row(s) upserted", res.rows_affected());
+    tx.commit().await?;
+    sqlx::query("VACUUM").execute(pool).await.context("VACUUM")?;
+    eprintln!("✓ wipe-data 完成。users / invite_codes / server_settings 保留。");
+    Ok(())
 }
 
 async fn user_dispatch(pool: &SqlitePool, cfg: &AppConfig, op: UserOp) -> Result<()> {

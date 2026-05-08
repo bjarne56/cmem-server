@@ -77,30 +77,37 @@ pub async fn create(
         }
     }
 
-    if machines::find_by_user_and_name(&state.pool, &user_id, &req.name)
+    // Idempotent createMachine:同 (user_id, name) 已存在 → 重发 token,复用 machine_id。
+    // 解决 client 端 logout 后 machine_id 丢失但 server 端仍保留 (user_id, name) UNIQUE
+    // 行的场景(典型:同 user re-login)。返回 200 + 已有 machine + 新 token。
+    let existing = machines::find_by_user_and_name(&state.pool, &user_id, &req.name)
         .await
-        .map_err(AppError::Internal)?
-        .is_some()
-    {
-        return Err(AppError::Conflict("machine name already taken".into()));
-    }
+        .map_err(AppError::Internal)?;
 
-    let id = Uuid::now_v7().to_string();
     let token_plain = generate_machine_token();
     let token_hash = hash_machine_token(&token_plain);
     let now = Utc::now().timestamp();
 
-    machines::create_machine(
-        &state.pool,
-        &id,
-        &user_id,
-        &req.name,
-        req.description.as_deref(),
-        &token_hash,
-        now,
-    )
-    .await
-    .map_err(AppError::Internal)?;
+    let id = if let Some(m) = existing {
+        machines::rotate_token(&state.pool, &m.id, &token_hash, now)
+            .await
+            .map_err(AppError::Internal)?;
+        m.id
+    } else {
+        let id = Uuid::now_v7().to_string();
+        machines::create_machine(
+            &state.pool,
+            &id,
+            &user_id,
+            &req.name,
+            req.description.as_deref(),
+            &token_hash,
+            now,
+        )
+        .await
+        .map_err(AppError::Internal)?;
+        id
+    };
 
     audit::record(
         &state.pool,

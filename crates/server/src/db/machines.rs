@@ -67,6 +67,31 @@ pub async fn find_by_id(pool: &SqlitePool, id: &str) -> Result<Option<MachineRow
 }
 
 /// 同一 user 下按 name 查询(用于注册时唯一性检查)。
+/// 给已有机器更新 token_hash + last_seen_at。
+/// idempotent createMachine 用:同 (user_id, name) 已存在 → 重发 token。
+pub async fn rotate_token(
+    pool: &SqlitePool,
+    machine_id: &str,
+    new_token_hash: &str,
+    now: i64,
+) -> Result<bool> {
+    let res = sqlx::query!(
+        r#"
+        UPDATE machines
+        SET machine_token_hash = ?2,
+            last_seen_at       = ?3,
+            revoked            = 0
+        WHERE id = ?1
+        "#,
+        machine_id,
+        new_token_hash,
+        now,
+    )
+    .execute(pool)
+    .await?;
+    Ok(res.rows_affected() > 0)
+}
+
 pub async fn find_by_user_and_name(
     pool: &SqlitePool,
     user_id: &str,
